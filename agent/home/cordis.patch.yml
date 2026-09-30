@@ -1,0 +1,40 @@
+# Home-level dsh patch layer: applies to every profile (web, headless, ...).
+# Default model for new sessions; any model can still be picked per session.
+- id: agent-default-model
+  name: '@deepseek-ai/dsh-agent-default-model'
+  config:
+    provider: deepseek-official
+    model: deepseek-v4-flash
+
+# Default agent preset: "full" (= standard + MCP servers), authored in
+# ~/.dsh/.agent-presets/full. MCP servers live only in that preset, so the
+# `lite` preset used with the local Qwen stays small.
+- id: agent-presets
+  name: '@deepseek-ai/dsh-agent-presets'
+  config:
+    default: full
+
+# Current date/time (Moscow) injected into each agent step — official, shipped with dsh.
+- insert:
+    - id: time-context
+      name: '@deepseek-ai/dsh-time-context'
+      config:
+        timeZone: Europe/Moscow
+        refreshIntervalMs: 300000
+
+# >>> J.A.R.V.I.S. launcher: local models (generated from models\registry.json, do not edit by hand)
+# (no local models installed)
+# <<< J.A.R.V.I.S. launcher
+
+# Agent replies in Russian. The override replaces the whole row, so both
+# persona keys are restated from the shipped defaults.
+- id: system-prompt
+  name: '@deepseek-ai/dsh-system-prompt'
+  config:
+    personaPrefix: You are a coding agent powered by the {{model}} model.
+    personaSuffix: >-
+      Your working directory is {{cwd}}.
+      LANGUAGE RULE: write every reply to the user in Russian, even when the
+      user writes in English, Chinese or any other language. Switch to another
+      language only if the user explicitly asks you to reply in that language.
+      Code, commands, file names and identifiers stay as they are.

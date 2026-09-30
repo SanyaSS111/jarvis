@@ -1,0 +1,13 @@
+# dsh-jarvis bundle layer. `name` must be the full package name so the
+# client-modules registry can find the browser half (lib/client.js).
+- insert:
+    - id: dsh-jarvis
+      name: dsh-jarvis
+      config:
+        uvx: C:\LLM\runtime\uv\uvx.exe
+        voiceRu: ru-RU-DmitryNeural
+        voiceEn: en-GB-RyanNeural
+        rate: '-6%'
+        pitch: '-6Hz'
+        maxSpokenChars: 900
+        themeFile: C:\LLM\data\agent\jarvis-theme.json

@@ -1,0 +1,24 @@
+# Your patch layer for this dsh profile, applied after every bundle layer:
+# a top-level YAML array of loader patch entries (id-targeted config
+# overrides, disables, and insert lists; `!!js` expressions allowed).
+
+# dsh-permission-rules: shared rule file for every workspace. The override
+# replaces the whole row, so the shipped keys are restated; searchUp merges
+# per-project .dsh/rules.yaml files, fallbackPath covers workspaces without one.
+- id: permission-rules
+  name: dsh-permission-rules
+  config:
+    rulesFile: .dsh/rules.yaml
+    badFilePolicy: fail
+    maxRules: 256
+    patternMode: glob
+    watch: true
+    searchUp: true
+    fallbackPath: C:\Projects\.dsh\rules.yaml
+
+# dsh-free-search: Russian-region Bing results (plugin default is zh-CN).
+- id: web-search-free
+  name: dsh-free-search
+  config:
+    provider: bing
+    bingMarket: ru-RU

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J.A.R.V.I.S.</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scan"></div>
+
+<header class="top">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="-50 -50 100 100" aria-hidden="true">
+      <circle r="44" class="bm-ring"/><circle r="30" class="bm-ring2"/><circle r="14" class="bm-core"/>
+    </svg>
+    <div>
+      <h1>J.A.R.V.I.S.</h1>
+      <small>Just A Rather Very Intelligent System</small>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button data-tab="home" class="active">Главная</button>
+    <button data-tab="model">Модели</button>
+    <button data-tab="hud">Оформление</button>
+    <button data-tab="system">Система</button>
+  </nav>
+  <div class="top-right">
+    <div class="clock"><b id="clock">--:--:--</b><span id="date"></span></div>
+    <button class="power" id="power" title="Остановить агента и выгрузить модель">
+      <svg viewBox="0 0 24 24"><path d="M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <!-- ============================== HOME ============================== -->
+  <section class="tab-page active" id="tab-home">
+    <div class="home-grid">
+      <div class="col">
+        <div class="panel">
+          <div class="panel-head"><span class="idx">01</span><h2>Агент · DeepSeek Harness</h2><i class="led" id="agent-led"></i></div>
+          <div class="panel-body">
+            <div class="status-line"><span id="agent-status">—</span><span class="muted" id="agent-uptime"></span></div>
+            <p class="muted small" id="agent-hint">Основная модель — DeepSeek-V4-Flash. Голосовой режим — кнопка реактора в строке ввода агента.</p>
+            <pre class="error-box" id="agent-error" hidden></pre>
+            <label class="switch"><input type="checkbox" id="agent-theme"><span></span>Интерфейс агента в стиле Джарвиса</label>
+            <div class="btn-row">
+              <button class="btn primary" id="agent-start">Запустить агента</button>
+              <button class="btn" id="agent-open">Открыть окно</button>
+              <button class="btn danger" id="agent-stop">Остановить</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="idx">02</span><h2>Локальная модель</h2><i class="led" id="qm-led"></i></div>
+          <div class="panel-body">
+            <div class="status-line"><span id="qm-status">—</span><span class="muted" id="qm-ctx"></span></div>
+            <select class="select" id="qm-select" aria-label="Модель"></select>
+            <div class="segmented" id="qm-seg"></div>
+            <p class="muted small" id="qm-hint"></p>
+            <div class="btn-row">
+              <button class="btn primary" id="qm-start">Запустить</button>
+              <button class="btn danger" id="qm-stop">Выгрузить</button>
+              <button class="btn ghost" data-goto="model">Все модели →</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><span class="idx">05</span><h2>Telegram-бот</h2><i class="led" id="tg-led"></i></div>
+          <div class="panel-body">
+            <div class="status-line"><span id="tg-status">—</span><span class="muted" id="tg-sub"></span></div>
+            <pre class="error-box" id="tg-error" hidden></pre>
+            <div id="tg-setup" hidden>
+              <p class="muted small">Общайтесь с агентом с телефона. 1) В Telegram откройте <b>@BotFather</b> → /newbot → придумайте имя → скопируйте токен.
+                2) Вставьте его сюда. Токен хранится только на этом ПК.</p>
+              <form class="search" id="tg-form">
+                <input id="tg-token" type="password" placeholder="Токен бота от @BotFather" autocomplete="off" spellcheck="false">
+                <button class="btn small primary" type="submit" id="tg-save">Подключить</button>
+              </form>
+            </div>
+            <div id="tg-main" hidden>
+              <div class="note" id="tg-pair" hidden></div>
+              <ul class="tg-users" id="tg-users"></ul>
+              <label class="switch"><input type="checkbox" id="tg-auto"><span></span>Запускать бота вместе с Windows</label>
+              <div class="btn-row">
+                <button class="btn primary" id="tg-start">Запустить бота</button>
+                <button class="btn danger" id="tg-stop">Остановить</button>
+                <button class="btn" id="tg-pair-btn">Привязать телефон</button>
+                <button class="btn ghost" id="tg-forget">Сменить бота</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col center">
+        <div class="greeting" id="greeting">Добрый день, сэр.</div>
+        <button class="reactor-wrap" id="reactor-btn" aria-label="Реактор: запуск агента">
+          <svg id="reactor" class="reactor idle" viewBox="-200 -200 400 400">
+            <defs>
+              <radialGradient id="coreGrad">
+                <stop offset="0" style="stop-color:#ffffff"/>
+                <stop offset=".35" style="stop-color:rgb(var(--acc))"/>
+                <stop offset="1" style="stop-color:rgba(var(--acc),0)"/>
+              </radialGradient>
+              <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter>
+            </defs>
+            <g class="spin-slow"><circle r="192" class="ring dashed"/></g>
+            <g class="spin-rev" id="ticks"></g>
+            <circle r="160" class="ring faint"/>
+            <circle r="160" class="progress" id="progress-arc" pathLength="100"/>
+            <g class="spin-mid" id="coils"></g>
+            <circle r="92" class="ring inner"/>
+            <g class="spin-rev-fast"><circle r="78" class="ring dashed2"/></g>
+            <circle r="70" class="core-glow" filter="url(#glow)"/>
+            <circle r="58" class="core" fill="url(#coreGrad)"/>
+            <polygon class="tri" points="0,-34 29.4,17 -29.4,17"/>
+          </svg>
+        </button>
+        <div class="caption">
+          <div class="caption-main" id="cap-main">—</div>
+          <div class="caption-sub" id="cap-sub"></div>
+        </div>
+      </div>
+
+      <div class="col">
+        <div class="panel">
+          <div class="panel-head"><span class="idx">03</span><h2>Телеметрия</h2></div>
+          <div class="panel-body">
+            <div class="gauges" id="gauges"></div>
+            <div class="kv"><span>Видеокарта</span><b id="gpu-name">—</b></div>
+            <div class="kv"><span>Свободно на диске C:</span><b id="disk-free">—</b></div>
+          </div>
+        </div>
+        <div class="panel grow">
+          <div class="panel-head"><span class="idx">04</span><h2>Журнал</h2></div>
+          <div class="panel-body"><ol class="journal" id="journal"></ol></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== MODEL ============================== -->
+  <section class="tab-page" id="tab-model">
+    <div class="models-grid">
+      <div class="panel hw-strip">
+        <div class="panel-body hw-body" id="hw-body">
+          <span class="hw-title">Ваш ПК</span>
+          <span class="hw-item"><small>Видеокарта</small><b id="hw-gpu">—</b></span>
+          <span class="hw-item"><small>Видеопамять</small><b id="hw-vram">—</b></span>
+          <span class="hw-item"><small>ОЗУ</small><b id="hw-ram">—</b></span>
+          <span class="hw-item"><small>Процессор</small><b id="hw-cpu">—</b></span>
+          <span class="hw-item"><small>Движок</small><b id="hw-engine">—</b></span>
+          <span class="hw-item"><small>Свободно на диске</small><b id="hw-disk">—</b></span>
+        </div>
+        <div class="hw-note" id="hw-note" hidden></div>
+      </div>
+
+      <div class="col">
+      <div class="panel grow">
+        <div class="panel-head"><span class="idx">M1</span><h2>Установленные модели</h2><i class="led" id="m-led"></i></div>
+        <div class="panel-body">
+          <div class="active-box">
+            <div class="status-line"><span id="m-status">—</span><span class="muted" id="m-uptime"></span></div>
+            <pre class="error-box" id="m-error" hidden></pre>
+            <h3>Контекст</h3>
+            <div class="segmented" id="m-seg"></div>
+            <div class="btn-row">
+              <button class="btn primary" id="m-start">Запустить</button>
+              <button class="btn danger" id="m-stop">Выгрузить</button>
+              <button class="btn" id="m-chat">Чат модели</button>
+            </div>
+            <div class="note warn" id="mem-note" hidden></div>
+          </div>
+          <ul class="inst-list" id="inst-list"></ul>
+          <div class="note">
+            <b>В агенте:</b> новая сессия → «Лёгкий режим» → модель из группы «Локально». Лаунчер сам добавляет установленные
+            модели в агента, а контекст там всегда совпадает с запущенным.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="idx">M3</span><h2>Картинки · ComfyUI</h2><i class="led" id="c-led"></i></div>
+        <div class="panel-body">
+          <div class="status-line"><span id="c-status">—</span><span class="muted" id="c-uptime"></span></div>
+          <p class="muted small" id="c-hint"></p>
+          <div class="bar" id="c-bar" hidden><i class="active" id="c-bar-i"></i></div>
+          <pre class="error-box" id="c-error" hidden></pre>
+          <div class="btn-row">
+            <button class="btn primary" id="c-install">Установить ComfyUI</button>
+            <button class="btn primary" id="c-start">Открыть ComfyUI</button>
+            <button class="btn danger" id="c-stop">Остановить</button>
+            <button class="btn ghost" id="c-output">Готовые картинки</button>
+            <button class="btn ghost" id="c-delete">Удалить ComfyUI</button>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="idx">M2</span><h2>Каталог Hugging Face</h2></div>
+        <div class="panel-body">
+          <div class="cat-bar">
+            <div class="segmented" id="cat-mode">
+              <button data-mode="rec" class="on">Подборка</button>
+              <button data-mode="search">Поиск</button>
+            </div>
+            <form class="search" id="cat-search" hidden>
+              <input id="cat-q" type="search" placeholder="Например: qwen, gemma, uncensored, coder" autocomplete="off">
+              <button class="btn small" type="submit">Найти</button>
+            </form>
+          </div>
+          <div class="chips" id="cat-filters" role="group" aria-label="Фильтры">
+            <button data-f="fits">Влезает в этот ПК</button>
+            <button data-f="vision">Видит картинки</button>
+            <button data-f="uncensored">Без цензуры</button>
+            <button data-f="tools">Инструменты агента</button>
+            <button data-f="coder">Для кода</button>
+            <button data-f="moe">MoE</button>
+            <button data-f="image">Картинки (ComfyUI)</button>
+          </div>
+          <p class="muted small" id="cat-hint">Оценка скорости — для этого ПК при контексте 16K.</p>
+          <div class="cat-list" id="cat-list"></div>
+          <div class="cat-detail" id="cat-detail" hidden></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== HUD ============================== -->
+  <section class="tab-page" id="tab-hud">
+    <div class="hud-grid">
+      <div class="panel">
+        <div class="panel-head"><span class="idx">H1</span><h2>Обои J.A.R.V.I.S. HUD</h2><i class="led" id="hud-led"></i></div>
+        <div class="panel-body">
+          <div class="status-line"><span id="hud-status">—</span></div>
+          <div class="btn-row">
+            <button class="btn primary" id="hud-start">Включить обои</button>
+            <button class="btn danger" id="hud-stop">Выключить</button>
+          </div>
+          <label class="switch"><input type="checkbox" id="hud-autostart"><span></span>Запускать обои вместе с Windows</label>
+          <div class="preview" id="hud-preview-box">
+            <img id="hud-preview" alt="Предпросмотр обоев">
+            <div class="preview-empty" id="hud-preview-empty">Превью ещё не создано</div>
+            <button class="btn small" id="hud-preview-btn">Обновить превью</button>
+          </div>
+          <p class="muted small">Перетаскивание модулей мышью — в родных настройках: щёлкните по значку HUD в области уведомлений.</p>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="idx">H2</span><h2>Настройки обоев</h2><span class="dirty" id="hud-dirty" hidden>есть несохранённые изменения</span></div>
+        <div class="panel-body">
+          <h3>Цвет акцента</h3>
+          <div class="swatches" id="hud-accent"></div>
+          <div class="cols-2">
+            <div><h3>Лимит кадров</h3><div class="segmented" id="hud-fps"></div></div>
+            <div><h3>Отступ под значки</h3><div class="segmented" id="hud-margin"></div></div>
+          </div>
+          <h3>Оформление</h3>
+          <div class="checks" id="hud-look"></div>
+          <h3>Модули</h3>
+          <div class="checks two" id="hud-modules"></div>
+          <div class="btn-row sticky">
+            <button class="btn primary" id="hud-apply" disabled>Применить</button>
+            <button class="btn" id="hud-revert" disabled>Отменить</button>
+            <button class="btn ghost" id="hud-reset">По умолчанию</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><span class="idx">H3</span><h2>Windows</h2></div>
+        <div class="panel-body">
+          <h3>Интерфейс Windows</h3>
+          <div class="tb-mock" aria-hidden="true">
+            <span class="tb-start"></span><span class="tb-app active"></span><span class="tb-app on"></span><span class="tb-app"></span>
+            <span class="tb-tray"><i></i><i></i><b>04:38<small>24.09.2026</small></b></span>
+          </div>
+          <div class="status-line"><span id="tb-status">—</span></div>
+          <div class="dl-msg" id="tb-step"></div>
+          <pre class="error-box" id="tb-error" hidden></pre>
+          <ul class="parts" id="tb-parts"></ul>
+          <label class="switch" id="tb-auto-wrap" hidden><input type="checkbox" id="tb-auto"><span></span>Запускать Windhawk вместе с Windows (иначе после перезагрузки оформление вернётся при открытии лаунчера)</label>
+          <div class="btn-row">
+            <button class="btn primary" id="tb-install">Установить всё</button>
+            <button class="btn" id="tb-reload" hidden>Перечитать темы</button>
+            <button class="btn ghost" id="tb-open" hidden>Открыть Windhawk</button>
+          </div>
+          <p class="muted small">Работает через встроенный Windhawk (открытый код, GPL-3.0): лаунчер сам скачивает его в C:\LLM\tools\windhawk,
+            ставит моды «Windows 11 … Styler» и темы C:\LLM\docs\*-jarvis.yaml. Переключатели мгновенно возвращают обычный вид.</p>
+
+          <h3>Остальное — вручную, в пару кликов</h3>
+          <ul class="parts manual">
+            <li>
+              <b>Курсоры Джарвиса</b>
+              <button class="btn small" id="g-cursors">Открыть</button>
+            </li>
+            <li>
+              <b>Цвет акцента <small class="muted">5CE1FF</small></b>
+              <button class="btn small" id="g-accent">Открыть</button>
+            </li>
+            <li>
+              <b>Экран блокировки</b>
+              <button class="btn small" id="g-lock">Открыть</button>
+            </li>
+          </ul>
+          <div class="note" id="g-hint" hidden></div>
+          <details class="cursor-map">
+            <summary>Какой курсор куда</summary>
+            <table class="qtable">
+              <tr><td>Основной режим</td><td>arrow.cur</td></tr>
+              <tr><td>Выбор справки</td><td>help.cur</td></tr>
+              <tr><td>Фоновый режим</td><td>working.cur</td></tr>
+              <tr><td>Занят</td><td>busy.cur</td></tr>
+              <tr><td>Графическое выделение</td><td>cross.cur</td></tr>
+              <tr><td>Выделение текста</td><td>text.cur</td></tr>
+              <tr><td>Рукописный ввод</td><td>pen.cur</td></tr>
+              <tr><td>Недоступно</td><td>no.cur</td></tr>
+              <tr><td>Изменение вертикальных размеров</td><td>ns.cur</td></tr>
+              <tr><td>Изменение горизонтальных размеров</td><td>ew.cur</td></tr>
+              <tr><td>Изменение размеров по диагонали 1</td><td>nwse.cur</td></tr>
+              <tr><td>Изменение размеров по диагонали 2</td><td>nesw.cur</td></tr>
+              <tr><td>Перемещение</td><td>move.cur</td></tr>
+              <tr><td>Альтернативный выбор</td><td>up.cur</td></tr>
+              <tr><td>Выбор ссылки</td><td>link.cur</td></tr>
+            </table>
+          </details>
+
+          <h3>Иконки</h3>
+          <div class="win-preview"><img src="/api/win/preview.png" alt="Иконки в стиле Джарвиса"></div>
+          <div class="status-line"><span id="win-status">—</span></div>
+          <div class="btn-row">
+            <button class="btn primary" id="win-apply">Применить иконки</button>
+            <button class="btn danger" id="win-restore">Вернуть как было</button>
+          </div>
+          <p class="muted small">Значки рабочего стола («Этот компьютер», «Корзина», «Сеть»…), иконки папок «Документы», «Загрузки», «Изображения», «Музыка», «Видео» и ярлыки известных программ. Всё прежнее сохраняется и возвращается одной кнопкой.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== SYSTEM ============================== -->
+  <section class="tab-page" id="tab-system">
+    <div class="three-grid">
+      <div class="panel">
+        <div class="panel-head"><span class="idx">S1</span><h2>Нагрузка на память</h2></div>
+        <div class="panel-body">
+          <div class="kv"><span>ОЗУ</span><b id="s-ram">—</b></div>
+          <div class="bar"><i id="s-ram-bar"></i></div>
+          <div class="kv"><span>Видеопамять</span><b id="s-vram">—</b></div>
+          <div class="bar"><i id="s-vram-bar"></i></div>
+          <h3>Самые тяжёлые программы</h3>
+          <ul class="heavy" id="s-heavy"></ul>
+          <p class="muted small">Локальной модели нужно ≈ 10–11 ГБ свободной ОЗУ и вся видеопамять. Закройте тяжёлые программы перед запуском — ответы станут в разы быстрее.</p>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><span class="idx">S2</span><h2>Инструменты</h2></div>
+        <div class="panel-body">
+          <button class="btn wide" id="t-blender">Blender + MCP</button>
+          <p class="muted small">Blender из Steam с уже запущенным MCP-сервером — агент в «Полном режиме» сможет им управлять.</p>
+          <h3>Папки</h3>
+          <div class="folder-grid">
+            <button class="btn ghost" data-open="root">Корень C:\LLM</button>
+            <button class="btn ghost" data-open="projects">Проекты</button>
+            <button class="btn ghost" data-open="models">Модели</button>
+            <button class="btn ghost" data-open="agent">Настройки агента</button>
+            <button class="btn ghost" data-open="hud">JarvisHUD</button>
+            <button class="btn ghost" data-open="docs">Документация</button>
+            <button class="btn ghost" data-open="logs">Логи и данные</button>
+          </div>
+        </div>
+      </div>
+      <div class="panel grow">
+        <div class="panel-head"><span class="idx">S3</span><h2>Журналы</h2></div>
+        <div class="panel-body">
+          <div class="segmented" id="log-seg"></div>
+          <pre class="log" id="log-text">—</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="bottom">
+  <span id="foot-left">C:\LLM</span>
+  <span class="muted" id="foot-right">Закрытие этого окна не останавливает агента, пока открыто его окно</span>
+</footer>
+
+<div class="offline" id="offline" hidden><div>НЕТ СВЯЗИ С ЯДРОМ<small>Запустите J.A.R.V.I.S. ярлыком на рабочем столе</small></div></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box">
+    <h2 id="modal-title">Подтверждение</h2>
+    <p id="modal-text"></p>
+    <div class="btn-row">
+      <button class="btn danger" id="modal-ok">Да</button>
+      <button class="btn" id="modal-cancel">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+<script src="models-ui.js"></script>
+<script src="telegram-ui.js"></script>
+</body>
+</html>

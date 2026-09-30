@@ -1,0 +1,27 @@
+{
+  "name": "dsh-profile-web",
+  "private": true,
+  "dependencies": {
+    "@goodandready/dsh-russian-lang": "^0.2.15",
+    "dsh-cost-meter": "^1.7.22",
+    "dsh-free-search": "^0.4.28",
+    "dsh-jarvis": "link:C:/LLM/agent/plugins/dsh-jarvis",
+    "dsh-mcp-connector": "^0.2.46",
+    "dsh-permission-rules": "^0.7.2"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dsh-cost-meter",
+        "dsh-free-search",
+        "dsh-mcp-connector",
+        "dsh-permission-rules",
+        "@goodandready/dsh-russian-lang",
+        "dsh-jarvis"
+      ],
+      "patchReload": "live"
+    }
+  }
+}

@@ -1,0 +1,61 @@
+controlStyles:
+  - target: Grid#TabContainerGrid
+    styles:
+      - Background=#F2061118
+  - target: Grid#TabContainerGrid > Border#LeftBottomBorderLine
+    styles:
+      - Background=#995CE1FF
+  - target: Grid#TabContainerGrid > Border#RightBottomBorderLine
+    styles:
+      - Background=#995CE1FF
+  - target: TabViewItem > Grid#LayoutRoot@CommonStates
+    styles:
+      - Background@Normal=Transparent
+      - Background@PointerOver=#1F5CE1FF
+      - Background@Selected=#335CE1FF
+      - Background@PointerOverSelected=#405CE1FF
+      - Background@PressedSelected=#4D5CE1FF
+  - target: TabViewItem > Grid#LayoutRoot > Canvas > Microsoft.UI.Xaml.Shapes.Path#SelectedBackgroundPath
+    styles:
+      - Fill=#335CE1FF
+  - target: Grid#NavigationBarControlGrid
+    styles:
+      - Background=#E6081821
+  - target: FileExplorerExtensions.CommandBarControl_Wave1 > Grid, Grid#CommandBarControlRootGrid
+    styles:
+      - Background=#E6081821
+      - BorderThickness=0,0,0,1
+      - BorderBrush=#805CE1FF
+  - target: CommandBar#FileExplorerCommandBar
+    styles:
+      - Background=Transparent
+  - target: Microsoft.UI.Xaml.Controls.Primitives.CommandBarFlyoutCommandBar > Grid#LayoutRoot > Grid#OuterContentRoot > Grid#ContentRoot > Grid#PrimaryItemsRoot
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#EB061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: Grid#OuterOverflowContentRootV2 > Grid#OverflowContentRoot > CommandBarOverflowPresenter#SecondaryItemsControl > Grid#LayoutRoot
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#EB061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: CommandBarOverflowPresenter#SecondaryItemsControl > Grid#LayoutRoot
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#EB061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: MenuFlyoutPresenter > Border
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#EB061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: Grid#FileExplorerAddressBarGrid
+    styles:
+      - Background=#260A1B25
+      - BorderBrush=#665CE1FF
+      - BorderThickness=1
+      - CornerRadius=2

@@ -1,0 +1,3 @@
+name: Полный режим
+description: Всё из обычного режима плюс MCP-серверы — Windows (управление ПК), Playwright (браузер), Context7 (документация), Wolfram (вычисления), draw.io (схемы), Blender. Для DeepSeek-V4-Pro/Flash; для локальной Qwen выбирайте «Лёгкий режим».
+order: 0

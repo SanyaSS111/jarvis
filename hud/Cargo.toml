@@ -1,0 +1,12 @@
+[package]
+name = "JarvisHUD2"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+femtovg = "0.27.0"
+image = { version = "0.25.10", default-features = false, features = ["png"] }
+imgref = "1.12.3"
+rgb = "0.8.53"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"

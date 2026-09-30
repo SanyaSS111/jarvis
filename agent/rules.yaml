@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/PerryLink/dsh-permission-rules/main/docs/rules-format.schema.json
+# Правила доступа агента для всех проектов в C:\Projects (подхватываются через fallbackPath).
+# Первое совпадение побеждает; встроенный базовый набор dsh-permission-rules применяется после этих правил.
+rules:
+  # Секреты и ключи — запрещено трогать любым инструментом.
+  - match:
+      paths: ["**/.env", "**/.env.*", "**/*.pem", "**/*.key", "**/.ssh/**", "**/.credentials.yaml", "**/secrets/**"]
+    action: deny
+    reason: "Файлы с секретами и ключами недоступны агенту"
+
+  # Удаление файлов и папок — только с подтверждением.
+  - match:
+      tools: [pwsh, bash]
+      argv:
+        command: ["Remove-Item", "rm", "rmdir", "rd", "del", "erase", "ri"]
+    action: ask
+    reason: "Удаление файлов требует подтверждения"
+
+  # Форматирование дисков и опасные системные команды — только с подтверждением.
+  - match:
+      tools: [pwsh, bash]
+      argv:
+        command: ["Format-Volume", "format", "diskpart", "Clear-Disk", "shutdown", "Restart-Computer", "Stop-Computer", "reg", "bcdedit"]
+    action: ask
+    reason: "Системная команда требует подтверждения"
+
+  # Принудительный push и публикация пакетов — только с подтверждением.
+  - match:
+      tools: [pwsh, bash]
+      params:
+        command: ["git push*--force*", "git push* -f*", "npm publish*", "pnpm publish*"]
+    action: ask
+    reason: "Необратимое действие во внешнем сервисе требует подтверждения"

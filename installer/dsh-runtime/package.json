@@ -1,0 +1,16 @@
+{
+  "name": "jarvis-dsh-runtime",
+  "private": true,
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.5-rc.1",
+    "pnpm": "12.4.1"
+  },
+  "allowScripts": {
+    "pnpm": true,
+    "@deepseek-ai/dsh-subprocess-local": true,
+    "koffi": true,
+    "@google/genai": true,
+    "protobufjs": true,
+    "node-pty": true
+  }
+}

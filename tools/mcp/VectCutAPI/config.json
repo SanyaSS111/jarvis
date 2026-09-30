@@ -1,0 +1,21 @@
+{
+  "draft_profile": "capcut_legacy",
+  "is_capcut_env": true,
+  "draft_domain": "http://127.0.0.1:9001",
+  "port": 9001,
+  "preview_router": "/draft/downloader",
+  "is_upload_draft": false,
+  "oss_config": {
+    "bucket_name": "",
+    "access_key_id": "",
+    "access_key_secret": "",
+    "endpoint": ""
+  },
+  "mp4_oss_config": {
+    "bucket_name": "",
+    "access_key_id": "",
+    "access_key_secret": "",
+    "region": "",
+    "endpoint": ""
+  }
+}

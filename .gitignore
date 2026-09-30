@@ -1,0 +1,21 @@
+# Safety net: sync.ps1 copies only allowlisted sources, but nothing below may ever be committed.
+.credentials*
+*.env
+.env*
+*.pem
+*.key
+data/
+models/
+runtime/
+node_modules/
+target/
+installer/cache/
+installer/build/
+installer/dist/
+*.log
+*.exe
+*.gguf
+*.safetensors
+*.part
+*.7z
+*.zip

@@ -1,0 +1,162 @@
+/* J.A.R.V.I.S. skin for DeepSeek Harness.
+ * Only re-maps the dark theme's design tokens (--dsw-*) and adds a non-interactive HUD frame,
+ * so the layout and every control stay exactly as shipped. Active while the body carries
+ * data-jarvis-theme (set by lib/client.js) and Harness is in its dark theme.
+ * --jv-acc is the accent as "r, g, b" (follows the JarvisHUD wallpaper accent). */
+
+body[data-ds-dark-theme][data-jarvis-theme] {
+  --jv-acc: 92, 225, 255;
+  --jv-a: rgb(var(--jv-acc));
+
+  /* Neutral scale -> deep navy (backgrounds) … pale cyan (text). */
+  --dsw-static-neutral-bluish-1000: #03070a;
+  --dsw-static-neutral-bluish-950: #050f15;
+  --dsw-static-neutral-bluish-900: #07151d;
+  --dsw-static-neutral-bluish-875: #0a1b25;
+  --dsw-static-neutral-bluish-850: #0d222d;
+  --dsw-static-neutral-bluish-800: #122b38;
+  --dsw-static-neutral-bluish-750: #193746;
+  --dsw-static-neutral-bluish-700: #274a5a;
+  --dsw-static-neutral-bluish-600: #4d7385;
+  --dsw-static-neutral-bluish-500: #62889a;
+  --dsw-static-neutral-bluish-400: #7fa4b5;
+  --dsw-static-neutral-bluish-300: #a2c5d4;
+  --dsw-static-neutral-bluish-200: #bcd9e5;
+  --dsw-static-neutral-bluish-150: #c8e2ec;
+  --dsw-static-neutral-bluish-100: #d2e9f2;
+  --dsw-static-neutral-bluish-75: #d9eef6;
+  --dsw-static-neutral-bluish-60: #e1f3fa;
+  --dsw-static-neutral-bluish-50: #e4f5fb;
+  --dsw-static-neutral-900: #07151d;
+  --dsw-static-neutral-850: #0d222d;
+  --dsw-static-neutral-800: #112935;
+  --dsw-static-neutral-700: #1b3a48;
+  --dsw-static-neutral-600: #28505f;
+  --dsw-static-neutral-550: #336273;
+
+  /* Brand blue -> reactor accent. */
+  --dsw-static-deepseek-50: color-mix(in srgb, var(--jv-a) 8%, #f4fcff);
+  --dsw-static-deepseek-100: color-mix(in srgb, var(--jv-a) 18%, #f4fcff);
+  --dsw-static-deepseek-200: color-mix(in srgb, var(--jv-a) 35%, #f4fcff);
+  --dsw-static-deepseek-300: color-mix(in srgb, var(--jv-a) 60%, #f4fcff);
+  --dsw-static-deepseek-400: var(--jv-a);
+  --dsw-static-deepseek-450: color-mix(in srgb, var(--jv-a) 88%, #000);
+  --dsw-static-deepseek-500: color-mix(in srgb, var(--jv-a) 76%, #000);
+  --dsw-static-deepseek-600: color-mix(in srgb, var(--jv-a) 60%, #000);
+  --dsw-static-deepseek-800: color-mix(in srgb, var(--jv-a) 30%, #050f15);
+  --dsw-static-deepseek-900: color-mix(in srgb, var(--jv-a) 18%, #050f15);
+
+  /* Surfaces, borders, interaction. */
+  --dsw-alias-bg-base: #040c11;
+  --dsw-alias-bg-layer-1: #081821;
+  --dsw-alias-bg-layer-2: #0c202b;
+  --dsw-alias-bg-layer-3: #102835;
+  --dsw-alias-bg-mask-drop: rgba(3, 10, 14, .72);
+  --dsw-alias-border-inverted: rgba(var(--jv-acc), .08);
+  --dsw-alias-border-inverted2: rgba(var(--jv-acc), .12);
+  --dsw-alias-border-l1: rgba(var(--jv-acc), .09);
+  --dsw-alias-border-l2-darkmode-thin: rgba(var(--jv-acc), .11);
+  --dsw-alias-border-l2: rgba(var(--jv-acc), .18);
+  --dsw-alias-border-l3: rgba(var(--jv-acc), .26);
+  --dsw-alias-border-l4: rgba(var(--jv-acc), .34);
+  --dsw-alias-interactive-bg-hover: rgba(var(--jv-acc), .08);
+  --dsw-alias-interactive-bg-active: rgba(var(--jv-acc), .15);
+  --dsw-alias-interactive-bg-hover-accent: rgba(var(--jv-acc), .22);
+  --dsw-alias-bg-skeleton: rgba(var(--jv-acc), .08);
+
+  /* Primary buttons light up in the accent; their label is dark. */
+  --dsw-alias-brand-primary: var(--jv-a);
+  --dsw-alias-button-primary-fill: var(--jv-a);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--jv-a) 70%, #fff);
+  --dsw-alias-button-primary-dimmed: color-mix(in srgb, var(--jv-a) 28%, #0a1b25);
+  --dsw-alias-brand-text: var(--jv-a);
+  --dsw-alias-link: var(--jv-a);
+  --dsw-alias-label-primary-foreground: #03070a;
+  --dsw-alias-button-contrast-fill: var(--jv-a);
+  --dsw-alias-state-business-primary: var(--jv-a);
+
+  --dsw-specific-sidebar-fill: #06131a;
+  --dsw-specific-sidebar-nav-item-hover: rgba(var(--jv-acc), .07);
+  --dsw-specific-sidebar-nav-item-active: rgba(var(--jv-acc), .14);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(var(--jv-acc), .2);
+  --dsw-specific-input-major: #0a1c26;
+  --dsw-specific-bubble: #0e2531;
+  --dsw-specific-bubble-highlight: #15313f;
+  --dsw-specific-menu: #0d222d;
+  --dsw-specific-selector: #122b38;
+  --dsw-alias-markdown-code-block: #06121a;
+  --dsw-alias-markdown-code-block-banner: #0b1e28;
+  --dsw-alias-markdown-inline-code: rgba(var(--jv-acc), .1);
+  --dsw-linear-gradient-think: linear-gradient(180deg, #040c11 20.19%, #040c1100 100%);
+  --dsw-linear-think-select: linear-gradient(180deg, #0c202b 20.19%, #0c202b00 100%);
+
+  --dsw-font-family: "Bahnschrift", "Segoe UI", -apple-system, "Microsoft YaHei", Arial, sans-serif;
+  --ds-font-family-code: "Cascadia Mono", Consolas, "JetBrains Mono", monospace;
+}
+
+/* Text selection, scrollbars, focus rings. */
+body[data-ds-dark-theme][data-jarvis-theme] ::selection { background: rgba(var(--jv-acc), .32); color: #fff; }
+body[data-ds-dark-theme][data-jarvis-theme] * { scrollbar-color: rgba(var(--jv-acc), .28) transparent; }
+body[data-ds-dark-theme][data-jarvis-theme] :focus-visible { outline-color: rgb(var(--jv-acc)) !important; }
+body[data-ds-dark-theme][data-jarvis-theme] textarea { caret-color: rgb(var(--jv-acc)); }
+
+/* Accents on a few components, matched by the stable part of their CSS-module class names.
+ * If a Harness update renames them these rules simply stop matching — nothing breaks. */
+body[data-ds-dark-theme][data-jarvis-theme] [class*="_composerStack"] [class*="_card"] {
+  box-shadow: 0 0 0 1px rgba(var(--jv-acc), .28), 0 0 22px rgba(var(--jv-acc), .07), inset 0 0 26px rgba(var(--jv-acc), .04);
+  transition: box-shadow .25s ease;
+}
+body[data-ds-dark-theme][data-jarvis-theme] [class*="_composerStack"] [class*="_card"]:focus-within {
+  box-shadow: 0 0 0 1px rgba(var(--jv-acc), .6), 0 0 30px rgba(var(--jv-acc), .16), inset 0 0 30px rgba(var(--jv-acc), .06);
+}
+body[data-ds-dark-theme][data-jarvis-theme] [class*="_composerStack"] button[class*="_primary"]:not(:disabled) {
+  box-shadow: 0 0 14px rgba(var(--jv-acc), .55);
+}
+body[data-ds-dark-theme][data-jarvis-theme] [class*="_userStack"] [class*="_bubble"] {
+  background: linear-gradient(135deg, rgba(var(--jv-acc), .13), rgba(var(--jv-acc), .05)), var(--dsw-specific-bubble);
+  box-shadow: inset 0 0 0 1px rgba(var(--jv-acc), .22);
+}
+
+/* ------------------------------------------------------------ HUD frame (never takes clicks) */
+.jv-frame { display: none; }
+body[data-ds-dark-theme][data-jarvis-theme] .jv-frame {
+  display: block; position: fixed; inset: 0; z-index: 2147482000; pointer-events: none;
+}
+/* Faint grid + center glow, blended so it only tints dark areas. */
+.jv-frame .jv-grid {
+  position: absolute; inset: 0; mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse 55% 45% at 55% 40%, rgba(var(--jv-acc), .045), transparent 70%),
+    linear-gradient(rgba(var(--jv-acc), .022) 1px, transparent 1px) 0 0 / 44px 44px,
+    linear-gradient(90deg, rgba(var(--jv-acc), .022) 1px, transparent 1px) 0 0 / 44px 44px;
+}
+.jv-frame .jv-scan {
+  position: absolute; inset: 0; mix-blend-mode: screen;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, .012) 0 1px, transparent 1px 3px);
+}
+/* Glowing top edge with a sweeping highlight. */
+.jv-frame .jv-top {
+  position: absolute; left: 0; right: 0; top: 0; height: 2px; overflow: hidden;
+  background: linear-gradient(90deg, transparent, rgba(var(--jv-acc), .55) 18%, rgba(var(--jv-acc), .55) 82%, transparent);
+  box-shadow: 0 0 10px rgba(var(--jv-acc), .6);
+}
+.jv-frame .jv-top::after {
+  content: ""; position: absolute; top: 0; bottom: 0; width: 18%;
+  background: linear-gradient(90deg, transparent, #fff, transparent); opacity: .8;
+  animation: jv-sweep 6s ease-in-out infinite;
+}
+/* Corner brackets. */
+.jv-frame .jv-c { position: absolute; width: 22px; height: 22px; border: 0 solid rgb(var(--jv-acc)); filter: drop-shadow(0 0 4px rgba(var(--jv-acc), .8)); opacity: .9; }
+.jv-frame .jv-tl { top: 5px; left: 5px; border-width: 2px 0 0 2px; }
+.jv-frame .jv-tr { top: 5px; right: 5px; border-width: 2px 2px 0 0; }
+.jv-frame .jv-bl { bottom: 5px; left: 5px; border-width: 0 0 2px 2px; }
+.jv-frame .jv-br { bottom: 5px; right: 5px; border-width: 0 2px 2px 0; }
+/* Tiny status tag in the bottom-right corner. */
+.jv-frame .jv-tag {
+  position: absolute; right: 34px; bottom: 7px; font: 600 9.5px/1 "Bahnschrift", "Segoe UI", sans-serif;
+  letter-spacing: .32em; color: rgba(var(--jv-acc), .55); text-transform: uppercase;
+}
+.jv-frame .jv-tag i { display: inline-block; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; background: rgb(var(--jv-acc)); box-shadow: 0 0 8px rgb(var(--jv-acc)); animation: jv-blink 2.4s ease-in-out infinite; vertical-align: 1px; }
+@keyframes jv-sweep { 0% { left: -20%; } 60%, 100% { left: 110%; } }
+@keyframes jv-blink { 50% { opacity: .3; } }
+@media (prefers-reduced-motion: reduce) { .jv-frame .jv-top::after, .jv-frame .jv-tag i { animation: none; } }

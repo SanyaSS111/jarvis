@@ -1,0 +1,41 @@
+controlStyles:
+  - target: Border#AcrylicBorder
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#E6061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: Border#AcrylicOverlay
+    styles:
+      - Visibility=Collapsed
+  - target: Border#TaskbarSearchBackground
+    styles:
+      - Background=#330A1B25
+      - BorderBrush=#805CE1FF
+      - BorderThickness=1
+      - CornerRadius=2
+  - target: Border#ContentBorder@CommonStates > Grid#DroppedFlickerWorkaroundWrapper > Border
+    styles:
+      - CornerRadius=2
+      - BorderThickness=1
+      - Background@Normal=Transparent
+      - BorderBrush@Normal=Transparent
+      - Background@PointerOver=#265CE1FF
+      - BorderBrush@PointerOver=#995CE1FF
+      - Background@Pressed=#405CE1FF
+      - BorderBrush@Pressed=#FF5CE1FF
+  - target: TextBlock#PinnedListHeaderText
+    styles:
+      - Foreground=#5CE1FF
+      - FontFamily=Bahnschrift
+      - CharacterSpacing=60
+  - target: Windows.UI.Xaml.Controls.TextBlock#AllAppsHeading
+    styles:
+      - Foreground=#5CE1FF
+      - FontFamily=Bahnschrift
+      - CharacterSpacing=60
+  - target: Grid#TopLevelSuggestionsListHeader > TextBlock
+    styles:
+      - Foreground=#5CE1FF
+      - FontFamily=Bahnschrift
+      - CharacterSpacing=60

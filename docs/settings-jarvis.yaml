@@ -1,0 +1,16 @@
+controlStyles:
+  - target: Microsoft.UI.Xaml.Controls.NavigationView#PermanentNavigationView
+    styles:
+      - Background=#F2061118
+  - target: SplitView#RootSplitView > Grid > Grid#ContentRoot > Border > Grid#ContentGrid
+    styles:
+      - Background=#E60A1B25
+      - BorderBrush=#805CE1FF
+      - BorderThickness=1,1,0,0
+  - target: TextBox#CommandSearchTextBox
+    styles:
+      - CornerRadius=2
+      - BorderBrush=#805CE1FF
+  - target: Windows.UI.Xaml.Shapes.Rectangle#ProgressBarIndicator
+    styles:
+      - Fill=#5CE1FF

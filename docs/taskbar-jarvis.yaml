@@ -1,0 +1,90 @@
+controlStyles:
+  - target: Taskbar.TaskbarFrame > Grid#RootGrid > Taskbar.TaskbarBackground > Grid > Rectangle#BackgroundFill
+    styles:
+      - Fill:=<LinearGradientBrush StartPoint="0,0" EndPoint="0,1"><GradientStop Color="#F20A1B25" Offset="0"/><GradientStop Color="#FA03070A" Offset="1"/></LinearGradientBrush>
+  - target: Rectangle#BackgroundStroke
+    styles:
+      - Fill:=<LinearGradientBrush StartPoint="0,0" EndPoint="1,0"><GradientStop Color="#005CE1FF" Offset="0"/><GradientStop Color="#CC5CE1FF" Offset="0.2"/><GradientStop Color="#CC5CE1FF" Offset="0.8"/><GradientStop Color="#005CE1FF" Offset="1"/></LinearGradientBrush>
+  - target: Taskbar.TaskbarBackground#HoverFlyoutBackgroundControl > Grid > Rectangle#BackgroundFill
+    styles:
+      - Fill=#F20A1B25
+  - target: Taskbar.TaskListButtonPanel@CommonStates > Grid > Border#BackgroundElement, Taskbar.TaskListButtonPanel@CommonStates > Border#BackgroundElement, Taskbar.TaskListLabeledButtonPanel@CommonStates > Border#BackgroundElement
+    styles:
+      - CornerRadius=2
+      - BorderThickness=1
+      - Background=Transparent
+      - BorderBrush=Transparent
+      - Background@InactivePointerOver=#1F5CE1FF
+      - BorderBrush@InactivePointerOver=#665CE1FF
+      - Background@InactivePressed=#335CE1FF
+      - BorderBrush@InactivePressed=#995CE1FF
+      - Background@ActiveNormal=#265CE1FF
+      - BorderBrush@ActiveNormal=#995CE1FF
+      - Background@ActivePointerOver=#385CE1FF
+      - BorderBrush@ActivePointerOver=#CC5CE1FF
+      - Background@ActivePressed=#4D5CE1FF
+      - BorderBrush@ActivePressed=#FF5CE1FF
+  - target: Rectangle#RunningIndicator
+    styles:
+      - Fill=#995CE1FF
+      - Height=2
+      - RadiusX=0
+      - RadiusY=0
+  - target: Grid#IconPanel@CommonStates > Rectangle#RunningIndicator, Taskbar.TaskListLabeledButtonPanel@CommonStates > Rectangle#RunningIndicator
+    styles:
+      - Fill@InactiveNormal=#995CE1FF
+      - Fill@InactivePointerOver=#CC5CE1FF
+      - Fill@ActiveNormal=#FF5CE1FF
+      - Fill@ActivePointerOver=#FF9FF0FF
+  - target: TextBlock#LabelControl
+    styles:
+      - Foreground=#CFF6FF
+      - FontFamily=Bahnschrift
+  - target: StackPanel#SystemTrayFrameGrid, Grid#SystemTrayFrameGrid
+    styles:
+      - Background=#0D5CE1FF
+      - BorderBrush=#405CE1FF
+      - BorderThickness=1,0,0,0
+  - target: SystemTray.TextIconContent > Grid > SystemTray.AdaptiveTextBlock#Base > TextBlock
+    styles:
+      - Foreground=#9FF0FF
+  - target: TextBlock#InnerTextBlock
+    styles:
+      - Foreground=#9FF0FF
+  - target: SystemTray.NotifyIconView@CommonStates > Grid#ContainerGrid > Border#BackgroundBorder, SystemTray.NotifyIconView@CommonStates > Grid > Border#BackgroundBorder
+    styles:
+      - CornerRadius=2
+      - BorderThickness=1
+      - Background@PointerOver=#265CE1FF
+      - BorderBrush@PointerOver=#995CE1FF
+      - Background@Pressed=#405CE1FF
+      - BorderBrush@Pressed=#FF5CE1FF
+  - target: Border#OverflowFlyoutBackgroundBorder
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#E6061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: MenuFlyoutPresenter > Border
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#EB061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: Border#HoverFlyoutBackground
+    styles:
+      - Background:=<WindhawkBlur BlurAmount="30" TintColor="#E6061118"/>
+      - BorderBrush=#995CE1FF
+      - BorderThickness=1
+      - CornerRadius=4
+  - target: TextBlock#TimeInnerTextBlock
+    styles:
+      - Foreground=#9FF0FF
+      - FontFamily=Bahnschrift
+      - FontWeight=SemiBold
+      - CharacterSpacing=80
+  - target: TextBlock#DateInnerTextBlock
+    styles:
+      - Foreground=#5CE1FF
+      - FontFamily=Bahnschrift
+      - CharacterSpacing=40
