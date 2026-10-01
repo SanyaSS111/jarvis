@@ -399,19 +399,20 @@ window.__ModuleLoader__.load({
     let themeTimer = null
     let localeRuntime = null
 
-    // The launcher's language → this window, once per change of the launcher setting. The window keeps
-    // its own last language and writes it back to the settings on load (the Russian UI plugin follows it),
-    // which would undo the launcher's switch. A language picked later in the agent's own menu is left
-    // alone until the launcher's setting changes again. "Applied" is stored only once the window really
-    // shows the language, so a plugin that switches it back at boot gets corrected on the next poll.
-    function syncUiLang(lang) {
+    // The launcher's language → this window, once per switch in the launcher (stamp = time of the switch).
+    // The window keeps its own last language and writes it back to the settings on load (the Russian UI
+    // plugin follows it), which would undo the launcher's switch. A language picked later in the agent's
+    // own menu is left alone until the launcher switches again. The stamp is stored only once the window
+    // really shows the language, so a plugin that switches it back at boot gets corrected on the next poll.
+    function syncUiLang(lang, stamp) {
       if (!localeRuntime || (lang !== 'ru' && lang !== 'en')) return
+      const key = lang + '@' + (stamp || 'initial')
       let applied = null
       try { applied = localStorage.getItem('jarvis-ui-lang') } catch (e) {}
-      if (applied === lang) return
+      if (applied === key) return
       try {
         const st = localeRuntime.getLocale()
-        if (st.active === lang) { try { localStorage.setItem('jarvis-ui-lang', lang) } catch (e) {} return }
+        if (st.active === lang) { try { localStorage.setItem('jarvis-ui-lang', key) } catch (e) {} return }
         if (!st.locales.some((l) => l.id === lang)) return // "ru" appears once the Russian UI plugin is up
         localeRuntime.setLocale(lang)
       } catch (e) { /* locale runtime not ready yet */ }
@@ -452,7 +453,7 @@ window.__ModuleLoader__.load({
       try {
         const r = await fetch('/dsh-jarvis/theme', { cache: 'no-store' })
         const j = await r.json()
-        if (j && j.ok) { if (j.lang === 'ru' || j.lang === 'en') { LANG = j.lang; syncUiLang(j.lang) } applyTheme(j) }
+        if (j && j.ok) { if (j.lang === 'ru' || j.lang === 'en') { LANG = j.lang; syncUiLang(j.lang, j.langStamp) } applyTheme(j) }
       } catch (e) { /* server restarting — keep the current look */ }
     }
 

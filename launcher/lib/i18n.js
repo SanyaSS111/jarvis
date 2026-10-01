@@ -28,6 +28,8 @@ function set(l) {
   if (!LANGS.includes(l)) throw new Error('unknown language: ' + l);
   const s = readSettings();
   s.lang = l;
+  // The agent window applies a language once per switch (dsh-jarvis client): it watches this stamp.
+  s.langChangedAt = new Date().toISOString();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(s, null, 2));
   cur = l;

@@ -10,9 +10,10 @@ const src = path.resolve(__dirname, '..', '..'); // C:\LLM
 const [version, ...files] = process.argv.slice(2);
 if (!version || !files.length) { console.error('usage: node make-hotfix.js <version> <file>...'); process.exit(1); }
 
+// C:\LLM paths in a file become the target install's folder when the hotfix runs (as the installer does).
 const payload = files.map((rel) => {
   const text = fs.readFileSync(path.join(src, rel), 'utf8');
-  if (/C:\\\\LLM|C:\\LLM|C:\/LLM/.test(text)) throw new Error(`${rel} contains C:\\LLM paths — needs templating, not supported here`);
+  if (/Users[\\/]+[^\\/]+[\\/]/i.test(text.replace(/Users[\\/]+<name>/g, ''))) throw new Error(`${rel} contains a personal path`);
   return { rel, b64: Buffer.from(text, 'utf8').toString('base64') };
 });
 
@@ -59,7 +60,12 @@ for (const f of FILES) {
   const target = path.join(root, f.rel);
   if (!fs.existsSync(path.dirname(target))) { say('Пропущено (нет папки): ' + f.rel, 'Skipped (no folder): ' + f.rel); continue; }
   if (fs.existsSync(target) && !fs.existsSync(target + '.bak')) fs.copyFileSync(target, target + '.bak');
-  fs.writeFileSync(target, Buffer.from(f.b64, 'base64'));
+  const BS = String.fromCharCode(92);
+  const text = Buffer.from(f.b64, 'base64').toString('utf8')
+    .split('C:' + BS + BS + 'LLM').join(root.split(BS).join(BS + BS))
+    .split('C:' + BS + 'LLM').join(root)
+    .split('C:/LLM').join(root.split(BS).join('/'));
+  fs.writeFileSync(target, text);
   say('Обновлён: ' + f.rel, 'Updated: ' + f.rel);
 }
 

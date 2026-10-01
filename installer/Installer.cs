@@ -1166,17 +1166,27 @@ namespace Jarvis
         }
 
         // data\launcher\settings.json: {"lang": "en" | "ru"} — read by the launcher, agent plugins, bot and HUD.
+        // Sets "name": "value" in a flat JSON object kept as text (other keys untouched).
+        static string SetJsonString(string json, string name, string value)
+        {
+            var key = new System.Text.RegularExpressions.Regex("\"" + name + "\"\\s*:\\s*\"[^\"]*\"");
+            string pair = "\"" + name + "\": \"" + value + "\"";
+            if (key.IsMatch(json)) return key.Replace(json, pair);
+            if (json.StartsWith("{") && json.EndsWith("}") && json.Substring(1, json.Length - 2).Trim().Length > 0)
+                return json.Substring(0, json.Length - 1).TrimEnd() + ",\n  " + pair + "\n}";
+            return "{\n  " + pair + "\n}";
+        }
+
         void WriteLang()
         {
             string file = Path.Combine(root, "data", "launcher", "settings.json");
             string lang = ru ? "ru" : "en";
             string json = "";
             try { if (File.Exists(file)) json = File.ReadAllText(file, Encoding.UTF8).Trim(); } catch { }
-            var key = new System.Text.RegularExpressions.Regex("\"lang\"\\s*:\\s*\"[^\"]*\"");
-            if (key.IsMatch(json)) json = key.Replace(json, "\"lang\": \"" + lang + "\"");
-            else if (json.StartsWith("{") && json.EndsWith("}") && json.Length > 2 && json.Substring(1, json.Length - 2).Trim().Length > 0)
-                json = json.Substring(0, json.Length - 1).TrimEnd() + ",\n  \"lang\": \"" + lang + "\"\n}";
-            else json = "{\n  \"lang\": \"" + lang + "\"\n}";
+            var was = System.Text.RegularExpressions.Regex.Match(json, "\"lang\"\\s*:\\s*\"([^\"]*)\"");
+            json = SetJsonString(json, "lang", lang);
+            // A changed language: the agent window applies it once per stamp (dsh-jarvis client).
+            if (!was.Success || was.Groups[1].Value != lang) json = SetJsonString(json, "langChangedAt", DateTime.UtcNow.ToString("o"));
             File.WriteAllText(file, json + "\n", new UTF8Encoding(false));
             Log(L("Язык интерфейса: русский", "Interface language: English"));
         }

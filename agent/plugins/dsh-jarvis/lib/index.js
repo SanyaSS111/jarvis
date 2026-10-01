@@ -47,6 +47,12 @@ async function readJson(file) {
   try { return JSON.parse(await readFile(file, 'utf8')) } catch { return null }
 }
 
+// Changes with every switch in the launcher (absent until the first one): the window applies the language once per stamp.
+async function uiLangStamp(cfg) {
+  const s = await readJson(cfg.settingsFile)
+  return (s && s.langChangedAt) || 'initial'
+}
+
 async function uiLang(cfg) {
   const s = await readJson(cfg.settingsFile)
   return s && s.lang === 'ru' ? 'ru' : 'en'
@@ -58,7 +64,7 @@ async function themeState(cfg) {
   const accent = Array.isArray(hud && hud.accent) && hud.accent.length === 3
     ? hud.accent.map((v) => Math.round(Math.min(1, Math.max(0, Number(v) || 0)) * 255))
     : [92, 225, 255]
-  return { enabled: !saved || saved.enabled !== false, accent, lang: await uiLang(cfg) }
+  return { enabled: !saved || saved.enabled !== false, accent, lang: await uiLang(cfg), langStamp: await uiLangStamp(cfg) }
 }
 
 // ------------------------------------------------------------ text helpers
