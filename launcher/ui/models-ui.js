@@ -104,6 +104,15 @@ function renderHw(s) {
     note.textContent = t(`Установленный движок (${engines[hw.engine]}) не использует видеокарту ${hw.gpu.name} — модели будут считаться на процессоре. Для неё нужен движок ${engines[hw.recommendedEngine]}.`,
       `The installed engine (${engines[hw.engine]}) does not use the ${hw.gpu.name} GPU — models will run on the CPU. It needs the ${engines[hw.recommendedEngine]} engine.`);
   } else note.hidden = true;
+  // Engines that don't fit the GPU, prompt dismissed: a way back to it.
+  const e = s.engines;
+  if (e && e.actions.length && !e.visible) {
+    if (note.hidden) { note.hidden = false; note.textContent = t('Движки не подходят к видеокарте.', 'The engines do not match the GPU.'); }
+    const b = el('button', 'btn small primary', t('Обновить движки', 'Update engines'));
+    b.style.marginLeft = '10px';
+    b.onclick = () => post('hw/show');
+    note.appendChild(b);
+  }
 }
 
 // ---------------------------------------------------------------- installed + launch

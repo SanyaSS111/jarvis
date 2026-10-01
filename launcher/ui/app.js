@@ -165,6 +165,7 @@ function render(s) {
   renderModels(s);
   renderComfy(s);
   renderTelegram(s);
+  renderEngines(s);
   renderHud(s);
   renderSys(s);
   renderJournal(s);
@@ -222,7 +223,9 @@ function renderSys(s) {
   if (sys.gpu) {
     const v = (100 * sys.gpu.vramUsed) / sys.gpu.vramTotal;
     setGauge('vram', v, Math.round(v) + '%', `${dec((sys.gpu.vramUsed / 1024).toFixed(1))}/${Math.round(sys.gpu.vramTotal / 1024)} ${gb}`);
-    setGauge('temp', sys.gpu.temp, sys.gpu.temp + '°', t(`нагрузка ${sys.gpu.load}%`, `load ${sys.gpu.load}%`));
+    // AMD / Intel: Windows' counters give load and memory, no temperature.
+    if (sys.gpu.temp == null) setGauge('temp', 0, '—', t(`нагрузка ${sys.gpu.load}%`, `load ${sys.gpu.load}%`));
+    else setGauge('temp', sys.gpu.temp, sys.gpu.temp + '°', t(`нагрузка ${sys.gpu.load}%`, `load ${sys.gpu.load}%`));
     $('gpu-name').textContent = sys.gpu.name;
   }
   $('disk-free').textContent = fmtGB(sys.diskFree);

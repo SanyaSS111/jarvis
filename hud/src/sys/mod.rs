@@ -3,6 +3,7 @@
 //! никогда не ждала опроса датчиков.
 
 pub mod cpu;
+pub mod gpu_any;
 pub mod net;
 pub mod nvml;
 pub mod pdh;
@@ -24,6 +25,8 @@ pub struct StaticInfo {
     pub gpu_name: Option<String>,
     pub gpu_vram_total_gb: f32,
     pub gpu_power_limit_w: f32,
+    /// NVML: температура, вентилятор, частоты, мощность. Без него (AMD, Intel) — только загрузка и память.
+    pub gpu_detailed: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -127,11 +130,19 @@ fn os_name() -> String {
 impl Metrics {
     pub fn start() -> Self {
         nvml::init();
-        pdh::init();
+        // Не NVIDIA (или NVIDIA сняли, а драйвер остался): видеокарта через DXGI и счётчики Windows.
+        let any_gpu = if nvml::available() { None } else { gpu_any::best_adapter() };
+        pdh::init(any_gpu.as_ref().map(|a| a.luid.as_str()));
         cpu::prime();
         net::prime();
 
-        let gpu_static = nvml::static_info();
+        let gpu_static = nvml::static_info().or_else(|| {
+            any_gpu.as_ref().map(|a| nvml::GpuStatic {
+                name: a.name.clone(),
+                vram_total_gb: a.vram_bytes as f32 / 1024.0 / 1024.0 / 1024.0,
+                power_limit_w: 0.0,
+            })
+        });
         let (_, _, ram_total) = memory();
         let (_, _, disk_total) = system_disk();
 
@@ -145,6 +156,7 @@ impl Metrics {
             gpu_name: gpu_static.as_ref().map(|g| g.name.clone()),
             gpu_vram_total_gb: gpu_static.as_ref().map(|g| g.vram_total_gb).unwrap_or(0.0),
             gpu_power_limit_w: gpu_static.as_ref().map(|g| g.power_limit_w).unwrap_or(0.0),
+            gpu_detailed: nvml::available(),
         };
 
         let metrics = Self {
@@ -153,8 +165,9 @@ impl Metrics {
             info,
         };
 
+        let vram_total_gb = metrics.info.gpu_vram_total_gb;
         let worker = metrics.clone();
-        std::thread::spawn(move || worker.collect_loop());
+        std::thread::spawn(move || worker.collect_loop(vram_total_gb));
         metrics
     }
 
@@ -167,7 +180,7 @@ impl Metrics {
         *self.idle.lock().unwrap() = value;
     }
 
-    fn collect_loop(&self) {
+    fn collect_loop(&self, vram_total_gb: f32) {
         procs::prime();
         let mut tick: u64 = 0;
 
@@ -180,7 +193,22 @@ impl Metrics {
             let (ram_percent, ram_used, _) = memory();
             let (disk_percent, disk_free, _) = system_disk();
             let network = net::sample();
-            let gpu = nvml::sample();
+            let gpu = if nvml::available() {
+                nvml::sample()
+            } else {
+                match pdh::gpu_usage() {
+                    Some((load, used)) => {
+                        let used_gb = used as f32 / 1024.0 / 1024.0 / 1024.0;
+                        nvml::GpuSample {
+                            load,
+                            vram_used_gb: used_gb,
+                            vram_percent: if vram_total_gb > 0.0 { used_gb / vram_total_gb * 100.0 } else { 0.0 },
+                            ..Default::default()
+                        }
+                    }
+                    None => nvml::GpuSample::default(),
+                }
+            };
             let (read_kbs, write_kbs) = pdh::disk_io();
 
             let processes = if idle {

@@ -104,6 +104,11 @@ impl ModuleId {
     fn needs_gpu(self) -> bool {
         matches!(self, Self::Gpu | Self::Thermal | Self::Energy)
     }
+
+    /// Температура и мощность есть только через NVML.
+    fn needs_gpu_sensors(self) -> bool {
+        matches!(self, Self::Thermal | Self::Energy)
+    }
 }
 
 pub const MODULES: [ModuleId; 13] = [
@@ -364,17 +369,25 @@ impl Hud {
                 },
                 Element::Row {
                     label: tr("ВИДЕОПАМЯТЬ", "VRAM").into(),
-                    value: format!("{:.1} / {:.0} {}", sample.gpu_vram_used_gb, info.gpu_vram_total_gb, tr("ГБ", "GB")),
+                    value: format!("{:.1} / {:.0} {}", sample.gpu_vram_used_gb, info.gpu_vram_total_gb, tr("ГБ", "GB")).replace('.', crate::lang::dec()),
                     color: theme::TEXT,
                 },
-                Element::Row { label: tr("ВЕНТИЛЯТОР", "FAN").into(), value: format!("{} %", sample.gpu_fan), color: theme::TEXT },
-                Element::Row {
-                    label: tr("ЧАСТОТЫ", "CLOCKS").into(),
-                    value: format!("{}/{} {}", sample.gpu_clock_core, sample.gpu_clock_mem, tr("МГц", "MHz")),
-                    color: theme::TEXT,
-                },
-                Element::Spark { values: self.history.gpu.clone(), max: Some(100.0) },
-            ],
+            ]
+            .into_iter()
+            .chain(if info.gpu_detailed {
+                vec![
+                    Element::Row { label: tr("ВЕНТИЛЯТОР", "FAN").into(), value: format!("{} %", sample.gpu_fan), color: theme::TEXT },
+                    Element::Row {
+                        label: tr("ЧАСТОТЫ", "CLOCKS").into(),
+                        value: format!("{}/{} {}", sample.gpu_clock_core, sample.gpu_clock_mem, tr("МГц", "MHz")),
+                        color: theme::TEXT,
+                    },
+                ]
+            } else {
+                Vec::new()
+            })
+            .chain(std::iter::once(Element::Spark { values: self.history.gpu.clone(), max: Some(100.0) }))
+            .collect(),
 
             ModuleId::Thermal => vec![
                 Element::Row {

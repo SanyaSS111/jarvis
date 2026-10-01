@@ -42,6 +42,8 @@ const { createWindhawk } = require('./lib/windhawk');
 const { createComfy } = require('./lib/comfy');
 const { createTelegram } = require('./lib/telegram');
 const { applyFixes } = require('./lib/fixes');
+const { createEngines } = require('./lib/engines');
+const { createGpuTelemetry } = require('./lib/gputelemetry');
 const i18n = require('./lib/i18n');
 const { applyAgentLang } = require('./lib/agentlang');
 const T = i18n.T;
@@ -121,6 +123,10 @@ const comfy = createComfy({
 });
 // Telegram bot (tools\telegram\bot.js): the agent from a phone (lib/telegram.js).
 const telegram = createTelegram({ root: ROOT, run, killTree, journal });
+// A changed GPU: the right llama.cpp / ComfyUI engines, with the person's say on the old ones (lib/engines.js).
+async function refreshHw() { S.hw = await detectHardware(run, path.dirname(P.llama)); }
+const engines = createEngines({ root: ROOT, run, journal, getHw: () => S.hw, refreshHw, models, comfy });
+const gpuTelemetry = createGpuTelemetry();
 
 // ---------------------------------------------------------------- agent (dsh web)
 const AGENT_PORT = 3080;
@@ -390,11 +396,18 @@ function cpuTick() {
 }
 const SMI = ['C:\\Windows\\System32\\nvidia-smi.exe', 'C:\\Program Files\\NVIDIA Corporation\\NVSMI\\nvidia-smi.exe'].find((p) => fs.existsSync(p));
 async function gpuTick() {
-  if (!SMI) return;
-  const { stdout } = await run(SMI, ['--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu',
-    '--format=csv,noheader,nounits']);
-  const v = stdout.split(/\r?\n/)[0]?.split(',').map((s) => s.trim());
-  if (v && v.length >= 5) S.sys.gpu = { name: v[0], vramUsed: +v[1], vramTotal: +v[2], load: +v[3], temp: +v[4] };
+  const g = S.hw && S.hw.gpu;
+  if (SMI && (!g || g.vendor === 'nvidia')) {
+    const { stdout } = await run(SMI, ['--query-gpu=name,memory.used,memory.total,utilization.gpu,temperature.gpu',
+      '--format=csv,noheader,nounits']);
+    const v = stdout.split(/\r?\n/)[0]?.split(',').map((s) => s.trim());
+    if (v && v.length >= 5 && Number(v[2]) > 0) { S.sys.gpu = { name: v[0], vramUsed: +v[1], vramTotal: +v[2], load: +v[3], temp: +v[4] }; return; }
+  }
+  // AMD / Intel (or nvidia-smi left over from a removed NVIDIA card): Windows' GPU counters, no temperature.
+  if (!g) { S.sys.gpu = null; return; }
+  gpuTelemetry.start();
+  const t = gpuTelemetry.sample();
+  S.sys.gpu = { name: g.name, vramUsed: t ? t.usedMB : 0, vramTotal: g.vramMB, load: t ? t.load : 0, temp: null };
 }
 async function procTick() {
   const { stdout } = await run('tasklist.exe', ['/FO', 'CSV', '/NH'], { encoding: 'latin1' });
@@ -418,7 +431,7 @@ const clients = new Set();
 let idleTimer = null;
 function busyServices() {
   // A running Telegram bot may need the local model / ComfyUI through this server: stay up with it.
-  return ['starting', 'on', 'stopping'].includes(S.agent.status) || models.busy() || comfy.busy() || telegram.running() || !!(S.taskbar && S.taskbar.step);
+  return ['starting', 'on', 'stopping'].includes(S.agent.status) || models.busy() || comfy.busy() || engines.busy() || telegram.running() || !!(S.taskbar && S.taskbar.step);
 }
 function scheduleIdleCheck() {
   clearTimeout(idleTimer);
@@ -443,6 +456,7 @@ function snapshot() {
     models: models.state(),
     comfy: comfy.state(),
     telegram: telegram.state(),
+    engines: engines.state(),
     agent: { ...S.agent, theme: themeEnabled() },
     win: { ...S.win, applied: fs.existsSync(winStyleBackup) },
     lang: i18n.lang(),
@@ -497,7 +511,12 @@ const ACTIONS = {
   'tg/pair': () => telegram.pair(),
   'tg/unpair': (b) => telegram.removeUser(b.id),
   'tg/autostart': (b) => telegram.setAutostart(!!b.on),
-  'hw/refresh': async () => { S.hw = await detectHardware(run, path.dirname(P.llama)); },
+  'hw/refresh': async () => { await refreshHw(); await engines.plan(); },
+  'hw/apply': (b) => { engines.apply({ removeOld: !!b.removeOld }); },
+  'hw/later': () => engines.later(),
+  'hw/dismiss': () => engines.dismiss(),
+  'hw/show': () => engines.show(),
+  'hw/stash-delete': (b) => engines.removeStash(String(b.id)),
   'hud/start': () => hudStart(),
   'hud/stop': () => hudStop(),
   'hud/apply': (b) => hudApply(b.config || {}),
@@ -615,6 +634,8 @@ server.listen(PORT, '127.0.0.1', async () => {
   journal(T(`Железо: ${gpuText}, ОЗУ ${Math.round(S.hw.ramMB / 1024)} ГБ, движок ${S.hw.engine.toUpperCase()}`,
     `Hardware: ${gpuText}, RAM ${Math.round(S.hw.ramMB / 1024)} GB, engine ${S.hw.engine.toUpperCase()}`));
   models.syncHarness();
+  // Changed GPU / engines that don't fit it: the update prompt (sizes are counted in the background).
+  engines.check().catch((e) => journal('Engines: ' + e.message, 'warn'));
   try { for (const name of applyFixes(ROOT)) journal(T('Исправлено: ', 'Fixed: ') + name + T(' (перезапустите агента)', ' (restart the agent)'), 'ok'); }
   catch (e) { journal(T('Исправления плагинов: ', 'Plugin fixes: ') + e.message, 'warn'); }
   try { applyAgentLang(ROOT, i18n.lang()); } catch (e) { journal('Language: ' + e.message, 'warn'); }
@@ -629,7 +650,7 @@ server.listen(PORT, '127.0.0.1', async () => {
   // An already open launcher window reconnects on its own (EventSource retry) after a restart;
   // only open a new one if none comes back.
   if (!process.argv.includes('--no-window')) setTimeout(() => { if (clients.size === 0) openLauncherWindow(); }, 4000);
-  setInterval(() => { cpuTick(); models.tick(); models.poll(); comfy.tick(); comfy.poll(); broadcast('state', snapshot()); }, 1000);
+  setInterval(() => { cpuTick(); models.tick(); models.poll(); comfy.tick(); comfy.poll(); engines.tick(); broadcast('state', snapshot()); }, 1000);
   setInterval(gpuTick, 2000);
   setInterval(procTick, 3000);
   setInterval(agentPoll, 5000);
@@ -639,4 +660,5 @@ server.listen(PORT, '127.0.0.1', async () => {
   setTimeout(() => { if (clients.size === 0) scheduleIdleCheck(); }, 60000);
 });
 
+process.on('exit', () => gpuTelemetry.stop());
 process.on('uncaughtException', (e) => journal(T('Сбой: ', 'Crash: ') + (e.stack || e), 'error'));

@@ -79,6 +79,9 @@ impl Hud {
             if id.needs_gpu() && info.gpu_name.is_none() {
                 continue;
             }
+            if id.needs_gpu_sensors() && !info.gpu_detailed {
+                continue;
+            }
             let elements = self.elements(id, sample, info, scale, monitor);
             let (width, height) = self.module_size(id, &elements, scale);
             if width <= 0.0 || height <= 0.0 {

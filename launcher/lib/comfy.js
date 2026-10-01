@@ -32,11 +32,15 @@ const TEMPLATES = {
   ],
 };
 
+// The AMD build runs on ROCm, which needs RDNA 2 or newer: RX 6000 / 7000 / 9000, Radeon AI PRO, Ryzen AI
+// Max. Older Radeons (RX 400/500, Vega, RX 5000) get the CPU mode. The Intel build needs an Arc GPU.
+const AMD_ROCM = /\bRX\s*(6\d{3}|7\d{3}|9\d{3})|Radeon\s+(AI\s+)?PRO\s+(W7|W9|R9)|Radeon\s+80[56]0S|Ryzen\s+AI\s+Max/i;
+
 function pickVariant(hw) {
   const g = hw && hw.gpu;
   if (!g) return { key: 'nvidia_cu126', cpu: true };
-  if (g.vendor === 'amd') return { key: 'amd' };
-  if (g.vendor === 'intel') return { key: 'intel' };
+  if (g.vendor === 'amd') return AMD_ROCM.test(g.name) ? { key: 'amd' } : { key: 'nvidia_cu126', cpu: true, unsupported: true };
+  if (g.vendor === 'intel') return /\barc\b/i.test(g.name) ? { key: 'intel' } : { key: 'nvidia_cu126', cpu: true, unsupported: true };
   if (g.vendor === 'nvidia') return { key: /\bRTX\b|\bA\d{3,4}\b|\bL\d{1,2}S?\b|\bH\d{3}\b/i.test(g.name) ? 'nvidia' : 'nvidia_cu126' };
   return { key: 'nvidia_cu126', cpu: true };
 }
@@ -106,11 +110,14 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
       '  vae: vae\n  loras: loras\n  checkpoints: checkpoints\n');
   }
 
-  async function install() {
-    if (busy || installed()) return;
+  // replace: a new build for a changed GPU over the installed one; keepOld moves the old build to
+  // tools\comfyui-<variant> (switching back is then instant), otherwise it is deleted once the new one is ready.
+  async function install({ replace = false, keepOld = false } = {}) {
+    if (busy || (installed() && !replace)) return;
     const hw = getHw();
     const pick = pickVariant(hw);
     const v = VARIANTS[pick.key];
+    const oldVariant = readInfo().variant;
     busy = true; st.status = 'installing'; st.error = null;
     journal(T(`Установка ComfyUI ${VERSION} (${lbl(v)}, ${(v.size / 1073741824).toFixed(1)} ГБ)…`, `Installing ComfyUI ${VERSION} (${lbl(v)}, ${(v.size / 1073741824).toFixed(1)} GB)…`));
     try {
@@ -127,6 +134,11 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
       if (r.err) throw new Error(T('Не удалось распаковать архив ComfyUI: ', 'Could not unpack the ComfyUI archive: ') + (r.stderr || r.err.message).trim().slice(0, 300));
       const top = fs.readdirSync(tmp).map((n) => path.join(tmp, n)).find((p) => fs.existsSync(path.join(p, 'python_embeded')));
       if (!top) throw new Error(T('В архиве ComfyUI нет python_embeded — архив не того формата.', 'The ComfyUI archive has no python_embeded — wrong archive format.'));
+      if (keepOld && oldVariant && fs.existsSync(dir)) {
+        const stash = dir + '-' + oldVariant;
+        fs.rmSync(stash, { recursive: true, force: true });
+        fs.renameSync(dir, stash);
+      }
       fs.rmSync(dir, { recursive: true, force: true });
       fs.renameSync(top, dir);
       fs.rmSync(tmp, { recursive: true, force: true });
@@ -225,7 +237,9 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     fs.mkdirSync(outputDir, { recursive: true });
     const args = ['-s', main, '--windows-standalone-build', '--listen', '127.0.0.1', '--port', String(PORT), '--disable-auto-launch',
       '--output-directory', outputDir];
-    if (info.cpu || !hw.gpu) args.push('--cpu');
+    // An NVIDIA build on a PC whose GPU is now another vendor's (update postponed) can only use the CPU.
+    const foreign = hw.gpu && hw.gpu.vendor !== 'nvidia' && /^nvidia/.test(info.variant || '');
+    if (info.cpu || !hw.gpu || foreign) args.push('--cpu');
     else if (hw.gpu.vramMB && hw.gpu.vramMB < 8000) args.push('--lowvram');
     // Cards without bf16 (GTX 10xx/9xx, Volta, RTX 20xx) decode in fp16, which overflows in the Qwen/Wan VAE:
     // green/purple blotches and black squares. fp32 there costs almost nothing (the VAE is small).
@@ -334,18 +348,25 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     st.speed = now > t0 ? ((done - b0) * 1000) / (now - t0) : 0;
   }
 
+  // GPU ↔ CPU mode of the installed build (the same build runs either way); takes effect on the next start.
+  function setMode(cpu) {
+    const info = readInfo();
+    fs.writeFileSync(infoFile, JSON.stringify({ ...info, cpu: !!cpu }, null, 2));
+  }
+
   function state() {
     const info = readInfo();
     const pick = pickVariant(getHw());
     return {
       ...st, installed: installed(), busy, port: PORT, version: info.version || null,
       variant: info.variant ? lbl(VARIANTS[info.variant]) : null,
-      plan: { label: lbl(VARIANTS[pick.key]), bytes: VARIANTS[pick.key].size, cpu: !!pick.cpu, version: VERSION },
+      plan: { label: lbl(VARIANTS[pick.key]), bytes: VARIANTS[pick.key].size, cpu: !!pick.cpu, unsupported: !!pick.unsupported, version: VERSION },
+      cpu: !!info.cpu,
     };
   }
 
-  return { install, start, stop, remove, poll, tick, adopt, open, state, installed, releaseForModel,
-    busy: () => busy, running: () => ['starting', 'on'].includes(st.status), modelsDir, outputDir };
+  return { install, start, stop, remove, poll, tick, adopt, open, state, installed, releaseForModel, setMode, info: readInfo,
+    busy: () => busy, running: () => ['starting', 'on'].includes(st.status), lastError: () => st.error, dir, modelsDir, outputDir };
 }
 
-module.exports = { createComfy, pickVariant };
+module.exports = { createComfy, pickVariant, VARIANTS, VERSION };

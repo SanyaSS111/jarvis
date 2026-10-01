@@ -39,6 +39,21 @@
 </header>
 
 <main>
+  <!-- Changed GPU / engines that don't fit it (hw-ui.js) -->
+  <div class="hwup" id="hwup" hidden role="dialog" aria-live="polite">
+    <h2 id="hwup-title"></h2>
+    <p class="hwup-change" id="hwup-change"></p>
+    <ul class="hwup-list" id="hwup-list"></ul>
+    <label class="switch" id="hwup-remove-wrap"><input type="checkbox" id="hwup-remove"><span></span><t id="hwup-remove-text"></t></label>
+    <div class="bar" id="hwup-bar" hidden><i class="active" id="hwup-bar-i"></i></div>
+    <div class="dl-msg" id="hwup-step"></div>
+    <pre class="error-box" id="hwup-error" hidden></pre>
+    <div class="btn-row">
+      <button class="btn primary" id="hwup-apply"></button>
+      <button class="btn" id="hwup-later"></button>
+      <button class="btn ghost" id="hwup-dismiss"></button>
+    </div>
+  </div>
   <!-- ============================== HOME ============================== -->
   <section class="tab-page active" id="tab-home">
     <div class="home-grid">
@@ -378,6 +393,11 @@
           <h3 data-en="Tools">Инструменты</h3>
           <button class="btn wide" id="t-blender">Blender + MCP</button>
           <p class="muted small" data-en="Blender from Steam with its MCP server already running — the agent in &quot;Full mode&quot; can control it.">Blender из Steam с уже запущенным MCP-сервером — агент в «Полном режиме» сможет им управлять.</p>
+          <div id="stash-wrap" hidden>
+            <h3 data-en="Kept engines">Запасные движки</h3>
+            <ul class="parts" id="stash-list"></ul>
+            <p class="muted small" data-en="Engines of a previous GPU, kept for switching back instantly.">Движки прежней видеокарты — на случай, если она вернётся.</p>
+          </div>
           <h3 data-en="Folders">Папки</h3>
           <div class="folder-grid">
             <button class="btn ghost" data-open="root" data-en="Root folder">Корень C:\LLM</button>
@@ -422,5 +442,6 @@
 <script src="app.js"></script>
 <script src="models-ui.js"></script>
 <script src="telegram-ui.js"></script>
+<script src="hw-ui.js"></script>
 </body>
 </html>

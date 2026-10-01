@@ -386,6 +386,16 @@ h3::before { content: "▸ "; color: rgb(var(--acc)); }
 
 /* ------------------------------------------------------------ footer, overlays */
 .bottom { display: flex; justify-content: space-between; gap: 16px; padding-block: 8px 12px; border-top: 1px solid rgba(var(--acc), .14); font-size: 11.5px; letter-spacing: .08em; color: rgba(var(--acc), .8); }
+.hwup { position: fixed; top: 74px; left: 50%; transform: translateX(-50%); z-index: 35; width: min(620px, 94vw); max-height: calc(100vh - 100px); overflow: auto;
+  padding: 18px 20px; border: 1px solid rgba(var(--acc), .6); background: linear-gradient(180deg, #0a1720, #05090c); box-shadow: 0 0 40px rgba(var(--acc), .25); display: flex; flex-direction: column; gap: 10px; }
+.hwup[hidden] { display: none; }
+.hwup h2 { margin: 0; font-size: 16px; letter-spacing: .14em; text-transform: uppercase; color: rgb(var(--acc)); }
+.hwup-change { margin: 0; font-size: 13px; color: var(--text); }
+.hwup-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.hwup-list li { padding: 8px 10px; border: 1px solid rgba(var(--acc), .18); background: rgba(var(--acc), .04); font-size: 12.5px; line-height: 1.45; }
+.hwup-list li b { color: rgb(var(--acc)); font-weight: 500; }
+.hwup .switch { align-items: flex-start; font-size: 12.5px; line-height: 1.45; }
+.hwup .switch span { margin-top: 2px; }
 .offline, .modal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; background: rgba(2, 5, 7, .82); backdrop-filter: blur(4px); }
 .offline div { font-size: 22px; letter-spacing: .3em; color: var(--red); text-align: center; animation: blink 1.4s steps(2) infinite; }
 .offline small { display: block; font-size: 12px; letter-spacing: .1em; color: var(--steel); margin-top: 8px; }
