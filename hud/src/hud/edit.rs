@@ -7,6 +7,7 @@ use super::theme::{self, with_alpha};
 use super::widgets::Ctx;
 use super::Hud;
 use crate::overlay::Pointer;
+use crate::lang::tr;
 
 /// Где модуль оказался в последнем кадре — по этим прямоугольникам ловим щелчок.
 #[derive(Clone)]
@@ -138,14 +139,14 @@ pub fn banner(ctx: &mut Ctx, width: f32, y: f32, pointer: (f32, f32)) -> [(EditB
         .display_paint(15.0, accent)
         .with_text_align(Align::Center)
         .with_letter_spacing(3.0 * scale);
-    let _ = ctx.canvas.fill_text(center, y, "РЕЖИМ РАССТАНОВКИ", &title);
+    let _ = ctx.canvas.fill_text(center, y, tr("РЕЖИМ РАССТАНОВКИ", "LAYOUT MODE"), &title);
 
     let hint = ctx
         .label_paint(11.5, with_alpha(theme::STEEL, 0.95))
         .with_text_align(Align::Center);
     let _ = ctx
         .canvas
-        .fill_text(center, y + 22.0 * scale, "Перетащите модули мышью · Esc или «Готово» — выйти", &hint);
+        .fill_text(center, y + 22.0 * scale, tr("Перетащите модули мышью · Esc или «Готово» — выйти", "Drag modules with the mouse · Esc or “Done” to exit"), &hint);
 
     let button_height = 36.0 * scale;
     let button_y = y + 44.0 * scale;
@@ -175,7 +176,7 @@ pub fn banner(ctx: &mut Ctx, width: f32, y: f32, pointer: (f32, f32)) -> [(EditB
         let paint = ctx.stroke(with_alpha(accent, 0.85), 1.2);
         ctx.canvas.stroke_path(&path, &paint);
 
-        let label = if primary { "ГОТОВО" } else { "СБРОСИТЬ РАССТАНОВКУ" };
+        let label = if primary { tr("ГОТОВО", "DONE") } else { tr("СБРОСИТЬ РАССТАНОВКУ", "RESET LAYOUT") };
         let text = ctx
             .display_paint(12.5, if primary { theme::TEXT } else { accent })
             .with_text_align(Align::Center)

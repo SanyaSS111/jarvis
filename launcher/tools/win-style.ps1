@@ -3,7 +3,8 @@
 #  - desktop icons (This PC, user folder, Network, Control Panel, Recycle Bin) via HKCU ...\Explorer\CLSID\{id}\DefaultIcon
 #  - icons of the user folders (Documents, Downloads, Pictures, Music, Videos, Desktop) via their desktop.ini
 #  - icons of shortcuts of known apps on the Desktop and pinned to the taskbar (unknown shortcuts stay as they are)
-param([ValidateSet('apply', 'restore', 'status')][string]$Action = 'status')
+param([ValidateSet('apply', 'restore', 'status')][string]$Action = 'status', [ValidateSet('en', 'ru')][string]$Lang = 'en')
+function L([string]$ru, [string]$en) { if ($Lang -eq 'ru') { $ru } else { $en } }
 $ErrorActionPreference = 'Stop'
 
 $launcher = Split-Path -Parent $PSScriptRoot
@@ -109,7 +110,7 @@ function Do-Apply {
         if ($items -gt 0) { Set-ItemProperty -Path $key -Name '(default)' -Value "$(Ico $c.full),0" }
       }
       $done.clsid++
-    } catch { $done.errors += "значок $($c.icon): $($_.Exception.Message)" }
+    } catch { $done.errors += "$(L 'значок' 'icon') $($c.icon): $($_.Exception.Message)" }
   }
 
   $shell = New-Object -ComObject Shell.Application
@@ -128,7 +129,7 @@ function Do-Apply {
       }
       Set-IniIcon $dir (Ico $name)
       $done.folders++
-    } catch { $done.errors += "папка ${name}: $($_.Exception.Message)" }
+    } catch { $done.errors += "$(L 'папка' 'folder') ${name}: $($_.Exception.Message)" }
   }
 
   $ws = New-Object -ComObject WScript.Shell
@@ -144,7 +145,7 @@ function Do-Apply {
         $s.IconLocation = "$(Ico $icon),0"
         $s.Save()
         $done.shortcuts++
-      } catch { $done.errors += "ярлык $($f.Name): $($_.Exception.Message)" }
+      } catch { $done.errors += "$(L 'ярлык' 'shortcut') $($f.Name): $($_.Exception.Message)" }
     }
   }
 
@@ -157,7 +158,7 @@ function Do-Apply {
 # ------------------------------------------------------------------ restore
 function Do-Restore {
   $b = Load-Backup
-  if (-not $b) { return @{ restored = 0; errors = @('Резервной копии нет — оформление не применялось') } }
+  if (-not $b) { return @{ restored = 0; errors = @((L 'Резервной копии нет — оформление не применялось' 'No backup — the look was never applied')) } }
   $n = 0; $errors = @()
   foreach ($c in $b.clsid) {
     try {
@@ -172,7 +173,7 @@ function Do-Restore {
         }
       }
       $n++
-    } catch { $errors += "значок $($c.id): $($_.Exception.Message)" }
+    } catch { $errors += "$(L 'значок' 'icon') $($c.id): $($_.Exception.Message)" }
   }
   foreach ($f in $b.folders) {
     try {
@@ -184,13 +185,13 @@ function Do-Restore {
       } elseif (Test-Path -LiteralPath $ini) { Remove-Item -LiteralPath $ini -Force }
       (Get-Item -LiteralPath $f.path -Force).Attributes = [IO.FileAttributes]$f.dirAttributes
       $n++
-    } catch { $errors += "папка $($f.path): $($_.Exception.Message)" }
+    } catch { $errors += "$(L 'папка' 'folder') $($f.path): $($_.Exception.Message)" }
   }
   $ws = New-Object -ComObject WScript.Shell
   foreach ($s in $b.shortcuts) {
     try {
       if (Test-Path -LiteralPath $s.path) { $l = $ws.CreateShortcut($s.path); $l.IconLocation = $s.icon; $l.Save(); $n++ }
-    } catch { $errors += "ярлык $($s.path): $($_.Exception.Message)" }
+    } catch { $errors += "$(L 'ярлык' 'shortcut') $($s.path): $($_.Exception.Message)" }
   }
   if (-not $errors.Count) { Remove-Item $backupFile -Force }
   Refresh-Icons

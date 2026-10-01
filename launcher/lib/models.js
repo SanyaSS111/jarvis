@@ -7,6 +7,7 @@ const cp = require('child_process');
 const crypto = require('crypto');
 const hf = require('./hf');
 const harness = require('./harness');
+const { T } = require('./i18n');
 
 const PORT = 8081;
 const GB = 1024 ** 3;
@@ -16,15 +17,15 @@ const DEFAULT_CTX = 16384;
 
 // Curated starting points from tiny to large; the launcher shows how each fits this PC.
 const RECOMMENDED = [
-  { repo: 'LiquidAI/LFM2.5-2.6B-GGUF', note: 'Очень лёгкая. Для слабых ПК и ноутбуков без видеокарты.' },
-  { repo: 'ggml-org/gemma-4-E4B-it-GGUF', note: 'Лёгкая модель Google Gemma 4, понимает картинки.' },
-  { repo: 'HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive', note: 'Лёгкая Gemma 4 без цензуры.' },
-  { repo: 'unsloth/Qwen3.5-9B-GGUF', note: 'Средняя Qwen 3.5: хороший баланс ума и скорости.' },
-  { repo: 'unsloth/gemma-4-12b-it-GGUF', note: 'Средняя Gemma 4 12B.' },
-  { repo: 'unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF', note: 'MoE для программирования: быстрая даже частично в ОЗУ.' },
-  { repo: 'unsloth/Qwen3.6-35B-A3B-GGUF', note: 'Мощная MoE Qwen 3.6, понимает картинки.' },
-  { repo: 'HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive', note: 'Мощная Qwen 3.6 без цензуры.' },
-  { repo: 'unsloth/Qwen3.8-27B-GGUF', note: 'Самая умная из подборки. Нужна мощная видеокарта.' },
+  { repo: 'LiquidAI/LFM2.5-2.6B-GGUF', note: ['Очень лёгкая. Для слабых ПК и ноутбуков без видеокарты.', 'Very light. For weak PCs and laptops without a GPU.'] },
+  { repo: 'ggml-org/gemma-4-E4B-it-GGUF', note: ['Лёгкая модель Google Gemma 4, понимает картинки.', 'Light Google Gemma 4, understands images.'] },
+  { repo: 'HauhauCS/Gemma-4-E4B-Uncensored-HauhauCS-Aggressive', note: ['Лёгкая Gemma 4 без цензуры.', 'Light uncensored Gemma 4.'] },
+  { repo: 'unsloth/Qwen3.5-9B-GGUF', note: ['Средняя Qwen 3.5: хороший баланс ума и скорости.', 'Mid-size Qwen 3.5: a good balance of smarts and speed.'] },
+  { repo: 'unsloth/gemma-4-12b-it-GGUF', note: ['Средняя Gemma 4 12B.', 'Mid-size Gemma 4 12B.'] },
+  { repo: 'unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF', note: ['MoE для программирования: быстрая даже частично в ОЗУ.', 'MoE for coding: fast even when partly in RAM.'] },
+  { repo: 'unsloth/Qwen3.6-35B-A3B-GGUF', note: ['Мощная MoE Qwen 3.6, понимает картинки.', 'Powerful MoE Qwen 3.6, understands images.'] },
+  { repo: 'HauhauCS/Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive', note: ['Мощная Qwen 3.6 без цензуры.', 'Powerful uncensored Qwen 3.6.'] },
+  { repo: 'unsloth/Qwen3.8-27B-GGUF', note: ['Самая умная из подборки. Нужна мощная видеокарта.', 'The smartest in the picks. Needs a powerful GPU.'] },
 ];
 
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9.]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64);
@@ -128,9 +129,9 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
       const patch = path.join(agentHome, 'cordis.patch.yml');
       const changed = harness.syncPatch(patch, chatInstalled(), PORT);
       const repaired = harness.repairDefault(path.join(agentHome, 'settings.yaml'), chatInstalled());
-      if (repaired) journal('Модель агента по умолчанию снова DeepSeek-V4-Flash (прежняя локальная удалена)');
+      if (repaired) journal(T('Модель агента по умолчанию снова DeepSeek-V4-Flash (прежняя локальная удалена)', 'The agent default model is DeepSeek-V4-Flash again (the local one was removed)'));
       return changed;
-    } catch (e) { journal('Не удалось обновить список моделей в агенте: ' + e.message, 'error'); return false; }
+    } catch (e) { journal(T('Не удалось обновить список моделей в агенте: ', 'Could not update the model list in the agent: ') + e.message, 'error'); return false; }
   }
 
   // ------------------------------------------------------------ downloads
@@ -155,23 +156,23 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
       return;
     }
     e.status = 'installed'; e.error = null;
-    journal(`Модель «${e.title} ${e.quant}» установлена`, 'ok');
+    journal(T(`Модель «${e.title} ${e.quant}» установлена`, `Model "${e.title} ${e.quant}" installed`), 'ok');
     syncHarness();
     finishJob();
   }
 
   function onCurlExit(e, f, code) {
     if (!job || job.entry !== e) return;
-    if (job.cancel === 'pause') { e.status = 'paused'; journal(`Загрузка «${e.title}» на паузе`); return finishJob(); }
+    if (job.cancel === 'pause') { e.status = 'paused'; journal(T(`Загрузка «${e.title}» на паузе`, `Download of "${e.title}" paused`)); return finishJob(); }
     if (job.cancel === 'remove') return; // remove() finishes the job
     if (fileLen(partPath(e, f)) === f.size) { job.fails = 0; return verify(e, f); }
     job.fails += 1;
     if (job.fails <= 30) {
       job.phase = 'wait'; job.retryAt = Date.now() + 5000;
-      job.message = `Обрыв связи (curl ${code}), повтор через 5 с · попытка ${job.fails}/30`;
+      job.message = T(`Обрыв связи (curl ${code}), повтор через 5 с · попытка ${job.fails}/30`, `Connection lost (curl ${code}), retrying in 5 s · attempt ${job.fails}/30`);
     } else {
-      e.status = 'error'; e.error = `Ошибка загрузки (curl ${code}). Проверьте интернет и нажмите «Продолжить».`;
-      journal(`Загрузка «${e.title}» прервана`, 'error');
+      e.status = 'error'; e.error = T(`Ошибка загрузки (curl ${code}). Проверьте интернет и нажмите «Продолжить».`, `Download error (curl ${code}). Check your connection and press "Resume".`);
+      journal(T(`Загрузка «${e.title}» прервана`, `Download of "${e.title}" failed`), 'error');
       finishJob();
     }
   }
@@ -183,13 +184,13 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
     const stream = fs.createReadStream(partPath(e, f), { highWaterMark: 4 * 1024 * 1024 });
     job.stream = stream;
     stream.on('data', (c) => { hash.update(c); if (job) job.verifyDone += c.length; });
-    stream.on('error', (err) => { e.status = 'error'; e.error = 'Не удалось прочитать файл: ' + err.message; finishJob(); });
+    stream.on('error', (err) => { e.status = 'error'; e.error = T('Не удалось прочитать файл: ', 'Could not read the file: ') + err.message; finishJob(); });
     stream.on('end', () => {
       if (!job || job.entry !== e || job.cancel) return;
       if (hash.digest('hex') === f.sha) { fs.renameSync(partPath(e, f), finalPath(e, f)); nextFile(e); }
       else {
         try { fs.unlinkSync(partPath(e, f)); } catch {}
-        e.status = 'error'; e.error = `Файл ${f.name} повреждён при загрузке и удалён. Нажмите «Продолжить», чтобы скачать заново.`;
+        e.status = 'error'; e.error = T(`Файл ${f.name} повреждён при загрузке и удалён. Нажмите «Продолжить», чтобы скачать заново.`, `File ${f.name} was corrupted during download and removed. Press "Resume" to download it again.`);
         journal(e.error, 'error');
         finishJob();
       }
@@ -211,9 +212,9 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
 
   async function install(repo, key) {
     const info = await hf.details(repo);
-    if (info.gated) throw new Error('Эта модель требует входа на Hugging Face — скачать её отсюда нельзя.');
+    if (info.gated) throw new Error(T('Эта модель требует входа на Hugging Face — скачать её отсюда нельзя.', 'This model requires a Hugging Face login — it cannot be downloaded from here.'));
     const qn = info.quants.find((x) => x.key === key);
-    if (!qn) throw new Error('Такого варианта модели нет');
+    if (!qn) throw new Error(T('Такого варианта модели нет', 'No such model variant'));
     const id = slugify(`${info.title}-${key}`);
     const have = find(id);
     if (have) { if (have.status !== 'installed') resume(id); return; }
@@ -227,7 +228,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
     }
     const bytes = files.reduce((a, f) => a + f.size, 0);
     const st = fs.statfsSync(dir);
-    if (st.bavail * st.bsize < bytes + 2 * GB) throw new Error(`Недостаточно места: нужно ${(bytes / GB).toFixed(1)} ГБ + 2 ГБ запаса.`);
+    if (st.bavail * st.bsize < bytes + 2 * GB) throw new Error(T(`Недостаточно места: нужно ${(bytes / GB).toFixed(1)} ГБ + 2 ГБ запаса.`, `Not enough disk space: ${(bytes / GB).toFixed(1)} GB + 2 GB spare needed.`));
     entries.push({
       id, repo, title: info.title, quant: key, kind: info.kind || 'chat', arch: info.arch, params: info.params, moe: info.moe, tools: info.tools,
       vision: !!info.mmproj, uncensored: info.uncensored, ctxMax: info.ctxMax || 32768,
@@ -235,7 +236,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
       files, bytes, status: 'queued', error: null, addedAt: Date.now(),
     });
     save();
-    journal(`В очередь загрузки: «${info.title} ${key}» (${(bytes / GB).toFixed(1)} ГБ)`);
+    journal(T(`В очередь загрузки: «${info.title} ${key}» (${(bytes / GB).toFixed(1)} ГБ)`, `Queued for download: "${info.title} ${key}" (${(bytes / GB).toFixed(1)} GB)`));
     pump();
   }
 
@@ -272,13 +273,13 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
         for (const f of e.files) if (!others.has(finalPath(e, f))) for (const p of [finalPath(e, f), partPath(e, f)]) fs.rmSync(p, { force: true });
       } else fs.rmSync(modelDir(e), { recursive: true, force: true });
     } catch (err) {
-      e.error = 'Не удалось удалить файлы: ' + err.message; save(); journal(e.error, 'error'); return;
+      e.error = T('Не удалось удалить файлы: ', 'Could not delete the files: ') + err.message; save(); journal(e.error, 'error'); return;
     }
     entries = entries.filter((x) => x !== e);
     save();
     journal(e.status === 'installed'
-      ? `Модель «${e.title} ${e.quant}» удалена, освобождено ${(e.bytes / GB).toFixed(1)} ГБ`
-      : `Загрузка «${e.title} ${e.quant}» отменена, скачанные файлы удалены`);
+      ? T(`Модель «${e.title} ${e.quant}» удалена, освобождено ${(e.bytes / GB).toFixed(1)} ГБ`, `Model "${e.title} ${e.quant}" deleted, ${(e.bytes / GB).toFixed(1)} GB freed`)
+      : T(`Загрузка «${e.title} ${e.quant}» отменена, скачанные файлы удалены`, `Download of "${e.title} ${e.quant}" cancelled, downloaded files deleted`));
     syncHarness();
     pump();
   }
@@ -286,8 +287,8 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
   // ------------------------------------------------------------ llama-server
   async function start(id, ctx) {
     const e = find(id);
-    if (!e || e.status !== 'installed') throw new Error('Модель не установлена');
-    if (isImage(e)) throw new Error(`«${e.title}» рисует картинки — она запускается в ComfyUI, а не в llama.cpp.`);
+    if (!e || e.status !== 'installed') throw new Error(T('Модель не установлена', 'The model is not installed'));
+    if (isImage(e)) throw new Error(T(`«${e.title}» рисует картинки — она запускается в ComfyUI, а не в llama.cpp.`, `"${e.title}" draws images — it runs in ComfyUI, not in llama.cpp.`));
     ctx = Math.min(Number(ctx) || e.ctx || DEFAULT_CTX, e.ctxMax || 131072);
     if (['loading', 'on'].includes(active.status)) {
       if (active.id === id && active.ctx === ctx) return;
@@ -296,7 +297,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
     e.ctx = ctx; save();
     syncHarness();
     Object.assign(active, { status: 'loading', id, ctx, pid: null, error: null, since: Date.now() });
-    journal(`Загрузка модели «${e.title}», контекст ${Math.round(ctx / 1024)}K…`);
+    journal(T(`Загрузка модели «${e.title}», контекст ${Math.round(ctx / 1024)}K…`, `Loading model "${e.title}", context ${Math.round(ctx / 1024)}K…`));
     const busy = await listeningPid(PORT);
     if (busy) await killTree(busy);
     const hw = getHw() || { vramMB: 0, threads: 4 };
@@ -324,9 +325,9 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
         let tail = '';
         try { tail = fs.readFileSync(path.join(dataDir, 'llama-server.err.log'), 'utf8').split(/\r?\n/).filter(Boolean).slice(-8).join('\n'); } catch {}
         const unknownArch = /unknown model architecture|unsupported/i.test(tail);
-        active.error = (unknownArch ? 'Движок llama.cpp не знает эту архитектуру модели — нужна более новая версия движка.\n'
-          : `llama-server завершился (код ${code}) — возможно, не хватило памяти. Попробуйте контекст поменьше или вариант модели полегче.\n`) + tail;
-        journal('Локальная модель упала', 'error');
+        active.error = (unknownArch ? T('Движок llama.cpp не знает эту архитектуру модели — нужна более новая версия движка.\n', 'The llama.cpp engine does not know this model architecture — a newer engine is needed.\n')
+          : T(`llama-server завершился (код ${code}) — возможно, не хватило памяти. Попробуйте контекст поменьше или вариант модели полегче.\n`, `llama-server exited (code ${code}) — probably out of memory. Try a smaller context or a lighter model variant.\n`)) + tail;
+        journal(T('Локальная модель упала', 'The local model crashed'), 'error');
       }
       active.pid = null;
     });
@@ -338,7 +339,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
     modelProc = null;
     if (pid) await killTree(pid);
     Object.assign(active, { status: 'off', pid: null });
-    if (!quiet) journal('Локальная модель выгружена');
+    if (!quiet) journal(T('Локальная модель выгружена', 'Local model unloaded'));
   }
 
   async function poll() {
@@ -346,7 +347,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
     const r = await httpGet(`http://127.0.0.1:${PORT}/health`, 1500);
     if (r.status === 200 && active.status === 'loading') {
       active.status = 'on';
-      journal(`Модель готова за ${Math.round((Date.now() - active.since) / 1000)} с`, 'ok');
+      journal(T(`Модель готова за ${Math.round((Date.now() - active.since) / 1000)} с`, `Model ready in ${Math.round((Date.now() - active.since) / 1000)} s`), 'ok');
     }
   }
 
@@ -362,7 +363,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
     let ctx = e.ctx;
     try { ctx = JSON.parse(props.body).default_generation_settings.n_ctx || ctx; } catch {}
     Object.assign(active, { status: 'loading', id: e.id, ctx, pid, since: Date.now() });
-    journal(`Найдена работающая модель «${e.title}» — подключился`);
+    journal(T(`Найдена работающая модель «${e.title}» — подключился`, `Found a running model "${e.title}" — connected`));
   }
 
   // ------------------------------------------------------------ catalog
@@ -382,7 +383,7 @@ function createModels({ root, run, killTree, listeningPid, httpGet, journal, get
 
   async function recommended(ctx = DEFAULT_CTX) {
     const out = await Promise.all(RECOMMENDED.map(async (r) => {
-      try { return { ...withFit(await hf.details(r.repo), ctx), note: r.note }; } catch { return null; }
+      try { return { ...withFit(await hf.details(r.repo), ctx), note: T(...r.note) }; } catch { return null; }
     }));
     return out.filter((x) => x && x.quants.length);
   }

@@ -3,6 +3,7 @@
 // and the `telegram` agent profile (ACP) the bot talks to.
 // The token stays in data\telegram\config.json: never logged, never sent anywhere but api.telegram.org.
 'use strict';
+const { T } = require('./i18n');
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
@@ -47,12 +48,12 @@ function createTelegram({ root, run, killTree, journal }) {
       const req = https.get(`https://api.telegram.org/bot${token}/getMe`, { timeout: 15000 }, (res) => {
         let d = ''; res.on('data', (c) => (d += c));
         res.on('end', () => {
-          let j; try { j = JSON.parse(d); } catch { return reject(new Error('Telegram ответил непонятно (HTTP ' + res.statusCode + ')')); }
-          if (j.ok) resolve(j.result); else reject(new Error(res.statusCode === 401 ? 'Токен не подошёл — скопируйте его из @BotFather ещё раз.' : j.description));
+          let j; try { j = JSON.parse(d); } catch { return reject(new Error(T('Telegram ответил непонятно (HTTP ', 'Telegram sent an unexpected reply (HTTP ') + res.statusCode + ')')); }
+          if (j.ok) resolve(j.result); else reject(new Error(res.statusCode === 401 ? T('Токен не подошёл — скопируйте его из @BotFather ещё раз.', 'The token was rejected — copy it from @BotFather again.') : j.description));
         });
       });
-      req.on('timeout', () => req.destroy(new Error('Telegram не отвечает — проверьте интернет.')));
-      req.on('error', (e) => reject(new Error('Нет связи с api.telegram.org: ' + e.message)));
+      req.on('timeout', () => req.destroy(new Error(T('Telegram не отвечает — проверьте интернет.', 'Telegram is not responding — check your connection.'))));
+      req.on('error', (e) => reject(new Error(T('Нет связи с api.telegram.org: ', 'Cannot reach api.telegram.org: ') + e.message)));
     });
   }
 
@@ -134,13 +135,13 @@ function createTelegram({ root, run, killTree, journal }) {
     };
     copy(src, dst);
     fs.writeFileSync(marker, JSON.stringify({ version: PROFILE_VERSION }));
-    journal('Telegram: профиль агента для бота подготовлен');
+    journal(T('Telegram: профиль агента для бота подготовлен', 'Telegram: agent profile for the bot prepared'));
   }
 
   async function setToken(token) {
     token = String(token || '').trim();
-    if (!/^\d{5,}:[\w-]{30,}$/.test(token)) throw new Error('Это не похоже на токен бота. Он выглядит так: 1234567890:AAH…, его выдаёт @BotFather.');
-    busy = 'Проверяю токен…';
+    if (!/^\d{5,}:[\w-]{30,}$/.test(token)) throw new Error(T('Это не похоже на токен бота. Он выглядит так: 1234567890:AAH…, его выдаёт @BotFather.', 'This does not look like a bot token. It looks like 1234567890:AAH… and comes from @BotFather.'));
+    busy = T('Проверяю токен…', 'Checking the token…');
     try {
       const me = await getMe(token);
       const cfg = readCfg();
@@ -148,7 +149,7 @@ function createTelegram({ root, run, killTree, journal }) {
       cfg.token = token; cfg.bot = { id: me.id, username: me.username, name: me.first_name };
       if (changed) cfg.users = []; // another bot: pair again
       writeCfg(cfg);
-      journal(`Telegram: подключён бот @${me.username}`, 'ok');
+      journal(T(`Telegram: подключён бот @${me.username}`, `Telegram: bot @${me.username} connected`), 'ok');
       await stop(true);
       await start();
     } finally { busy = null; }
@@ -161,42 +162,42 @@ function createTelegram({ root, run, killTree, journal }) {
     delete cfg.token; delete cfg.bot; delete cfg.pair; cfg.users = [];
     writeCfg(cfg);
     try { fs.unlinkSync(statusFile); } catch {}
-    journal('Telegram: бот отключён от лаунчера, токен удалён');
+    journal(T('Telegram: бот отключён от лаунчера, токен удалён', 'Telegram: bot disconnected from the launcher, token deleted'));
   }
 
   async function start() {
     if (botPid()) return;
-    if (!readCfg().token) throw new Error('Сначала подключите бота: токен от @BotFather');
-    busy = 'Готовлю агента для бота…';
+    if (!readCfg().token) throw new Error(T('Сначала подключите бота: токен от @BotFather', 'Connect a bot first: a token from @BotFather'));
+    busy = T('Готовлю агента для бота…', 'Preparing the agent for the bot…');
     try { ensureProfile(); } finally { busy = null; }
     try { fs.unlinkSync(statusFile); } catch {}
     const out = fs.openSync(path.join(dir, 'bot.out.log'), 'w');
     const p = cp.spawn(process.execPath, [bot], { cwd: path.dirname(bot), detached: true, windowsHide: true, stdio: ['ignore', out, out] });
     fs.closeSync(out);
     p.unref();
-    journal('Telegram-бот запущен');
+    journal(T('Telegram-бот запущен', 'Telegram bot started'));
   }
 
   async function stop(quiet) {
     const pid = botPid();
     if (pid) await killTree(pid);
     try { fs.unlinkSync(pidFile); } catch {}
-    if (!quiet) journal('Telegram-бот остановлен');
+    if (!quiet) journal(T('Telegram-бот остановлен', 'Telegram bot stopped'));
   }
 
   function pair() {
     const cfg = readCfg();
-    if (!cfg.token) throw new Error('Сначала подключите бота');
+    if (!cfg.token) throw new Error(T('Сначала подключите бота', 'Connect a bot first'));
     cfg.pair = { code: String(crypto.randomInt(100000, 1000000)), until: Date.now() + 10 * 60000, fails: 0 };
     writeCfg(cfg);
-    journal('Telegram: код привязки создан (действует 10 минут)');
+    journal(T('Telegram: код привязки создан (действует 10 минут)', 'Telegram: pairing code created (valid for 10 minutes)'));
   }
 
   function removeUser(id) {
     const cfg = readCfg();
     cfg.users = (cfg.users || []).filter((u) => u.id !== Number(id));
     writeCfg(cfg);
-    journal('Telegram: доступ отозван');
+    journal(T('Telegram: доступ отозван', 'Telegram: access revoked'));
   }
 
   async function readAutostart() {
@@ -212,7 +213,7 @@ function createTelegram({ root, run, killTree, journal }) {
       await run('reg.exe', ['add', RUN_KEY, '/v', RUN_VALUE, '/t', 'REG_SZ', '/d', `wscript.exe "${vbs}"`, '/f']);
     } else await run('reg.exe', ['delete', RUN_KEY, '/v', RUN_VALUE, '/f']);
     await readAutostart();
-    journal(on ? 'Telegram-бот будет запускаться вместе с Windows' : 'Автозапуск Telegram-бота выключен');
+    journal(on ? T('Telegram-бот будет запускаться вместе с Windows', 'The Telegram bot will start with Windows') : T('Автозапуск Telegram-бота выключен', 'Telegram bot autostart is off'));
   }
 
   function state() {

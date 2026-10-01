@@ -9,6 +9,7 @@ use crate::clock;
 use crate::monitors::Monitor;
 use crate::sys::{Sample, StaticInfo};
 use crate::text::{Canvas, Fonts};
+use crate::lang::tr;
 
 struct Placed {
     id: ModuleId,
@@ -449,16 +450,17 @@ fn chrome(
         .stroke_path(&ticks, &ctx.stroke(with_alpha(accent, 0.18 * open), 1.0));
 
     let head = format!(
-        "J.A.R.V.I.S. · МОНИТОР {}{}",
+        "J.A.R.V.I.S. · {} {}{}",
+        tr("МОНИТОР", "MONITOR"),
         monitor.index,
-        if monitor.primary { " · ОСНОВНОЙ" } else { "" }
+        if monitor.primary { tr(" · ОСНОВНОЙ", " · PRIMARY") } else { "" }
     );
     let paint = ctx
         .display_paint(11.5, with_alpha(accent, title_progress.max(0.0) * open))
         .with_letter_spacing(3.0 * ctx.scale);
     let _ = ctx.canvas.fill_text(start, ruler_y + 18.0 * ctx.scale, &head, &paint);
 
-    let meta = format!("{}×{} · {} ГЦ", monitor.width, monitor.height, monitor.hz);
+    let meta = format!("{}×{} · {} {}", monitor.width, monitor.height, monitor.hz, tr("ГЦ", "HZ"));
     let meta_paint = ctx
         .label_paint(10.0, with_alpha(theme::STEEL, 0.8 * open))
         .with_text_align(Align::Right);
@@ -575,9 +577,9 @@ fn reactor(
 
     let date = format!(
         "{} {} {} {}",
-        super::WEEKDAYS[now.weekday],
+        super::weekday(now.weekday),
         now.day,
-        super::MONTHS[now.month],
+        super::month(now.month),
         now.year
     );
     let date_paint = ctx
@@ -735,7 +737,7 @@ fn date_ring(ctx: &mut Ctx, module: &Placed, alpha: f32) {
         .with_letter_spacing(2.0 * ctx.scale);
     let _ = ctx
         .canvas
-        .fill_text(cx, cy - radius * 0.42, super::MONTHS[now.month], &month_paint);
+        .fill_text(cx, cy - radius * 0.42, super::month(now.month), &month_paint);
 
     let day_paint = ctx
         .display_paint(42.0, with_alpha(theme::TEXT, alpha))
@@ -748,5 +750,5 @@ fn date_ring(ctx: &mut Ctx, module: &Placed, alpha: f32) {
         .with_letter_spacing(3.0 * ctx.scale);
     let _ = ctx
         .canvas
-        .fill_text(cx, cy + radius * 0.55, super::WEEKDAYS[now.weekday], &weekday_paint);
+        .fill_text(cx, cy + radius * 0.55, super::weekday(now.weekday), &weekday_paint);
 }

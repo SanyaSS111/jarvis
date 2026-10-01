@@ -28,8 +28,22 @@ const INBOX = path.join(PROJECTS, 'Telegram');
 const COMFY_OUT = path.join(ROOT, 'data', 'comfyui', 'output');
 const LAUNCHER = 'http://127.0.0.1:3190';
 const API = process.env.JARVIS_TG_API || 'https://api.telegram.org'; // overridable for offline tests
-const PRESETS = { full: 'Полный режим', lite: 'Лёгкий режим' };
-const EFFORTS = { off: 'без рассуждений', low: 'коротко', high: 'обычно', max: 'максимум' };
+// Interface language chosen in the launcher (data\launcher\settings.json), re-read every few seconds,
+// so a switch applies without restarting the bot. English by default.
+const SETTINGS = path.join(ROOT, 'data', 'launcher', 'settings.json');
+let langCache = { at: 0, value: 'en' };
+function lang() {
+  if (Date.now() - langCache.at > 5000) {
+    let v = 'en';
+    try { v = JSON.parse(fs.readFileSync(SETTINGS, 'utf8')).lang === 'ru' ? 'ru' : 'en'; } catch {}
+    langCache = { at: Date.now(), value: v };
+  }
+  return langCache.value;
+}
+const L = (ru, en) => (lang() === 'ru' ? ru : en);
+const PRESETS = new Proxy({}, { get: (o, k) => ({ full: L('Полный режим', 'Full mode'), lite: L('Лёгкий режим', 'Lite mode') })[k],
+  ownKeys: () => ['full', 'lite'], getOwnPropertyDescriptor: () => ({ enumerable: true, configurable: true }) });
+const EFFORTS = new Proxy({}, { get: (o, k) => ({ off: L('без рассуждений', 'no reasoning'), low: L('коротко', 'short'), high: L('обычно', 'normal'), max: L('максимум', 'maximum') })[k] });
 const IDLE_CLOSE_MS = 15 * 60000; // close an idle ACP session so the web agent can open it cleanly
 
 fs.mkdirSync(DATA, { recursive: true });
@@ -104,7 +118,7 @@ async function tgUpload(method, fields, fileField, filePath) {
 async function tgDownload(fileId, dest) {
   const f = await tg('getFile', { file_id: fileId });
   const r = await request(`${API}/file/bot${TOKEN}/${f.file_path}`, { timeout: 300000 });
-  if (r.status !== 200) throw new Error('не удалось скачать файл из Telegram');
+  if (r.status !== 200) throw new Error(L('не удалось скачать файл из Telegram', 'could not download the file from Telegram'));
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, r.body);
   return dest;
@@ -185,7 +199,7 @@ class Acp {
       log(`agent exited ${code}`);
       if (this.proc !== p) return;
       this.proc = null; this.ready = null; this.active.clear();
-      for (const [, w] of this.pending) w.reject(new Error('агент перезапускается'));
+      for (const [, w] of this.pending) w.reject(new Error(L('агент перезапускается', 'the agent is restarting')));
       this.pending.clear();
       saveStatus({ agent: 'off' });
     });
@@ -216,7 +230,7 @@ class Acp {
   write(obj) { if (this.proc) this.proc.stdin.write(JSON.stringify(obj) + '\n'); }
   call(method, params) {
     return new Promise((resolve, reject) => {
-      if (!this.proc) return reject(new Error('агент не запущен'));
+      if (!this.proc) return reject(new Error(L('агент не запущен', 'the agent is not running')));
       const id = ++this.n; this.pending.set(id, { resolve, reject });
       this.write({ jsonrpc: '2.0', id, method, params });
     });
@@ -286,14 +300,14 @@ function progressText(c) {
   const tools = c.tools.slice(-6).map((t) => `${t.done ? (t.failed ? '✖' : '✓') : '⚙'} ${t.title}`).join('\n');
   const body = c.reply.trim();
   const tail = body.length > 3000 ? '…' + body.slice(-3000) : body;
-  return [tools, tail || (c.thinking ? '💭 Думаю…' : '⏳ Работаю…')].filter(Boolean).join('\n\n');
+  return [tools, tail || (c.thinking ? L('💭 Думаю…', '💭 Thinking…') : L('⏳ Работаю…', '⏳ Working…'))].filter(Boolean).join('\n\n');
 }
 async function refresh(c, force) {
   if (!c.progressId || (!force && Date.now() - c.lastEdit < 2500)) return;
   c.lastEdit = Date.now();
   try { await edit(c.id, c.progressId, progressText(c), stopKeyboard()); } catch (e) { if (e.retryAfter) c.lastEdit = Date.now() + e.retryAfter * 1000; }
 }
-const stopKeyboard = () => ({ reply_markup: { inline_keyboard: [[{ text: '⏹ Остановить', callback_data: 'stop' }]] } });
+const stopKeyboard = () => ({ reply_markup: { inline_keyboard: [[{ text: L('⏹ Остановить', '⏹ Stop'), callback_data: 'stop' }]] } });
 
 acp.onUpdate = (p) => {
   const c = bySession(p.sessionId);
@@ -303,7 +317,7 @@ acp.onUpdate = (p) => {
     case 'agent_message_chunk': if (u.content && u.content.type === 'text') c.reply += u.content.text; c.thinking = false; break;
     case 'agent_thought_chunk': c.thinking = true; break;
     case 'tool_call': {
-      const t = { id: u.toolCallId, title: String(u.title || u.kind || 'инструмент').slice(0, 80), done: false, raw: u.rawInput };
+      const t = { id: u.toolCallId, title: String(u.title || u.kind || L('инструмент', 'tool')).slice(0, 80), done: false, raw: u.rawInput };
       c.tools.push(t); c.toolInfo.set(u.toolCallId, t);
       if (c.reply.trim()) c.reply += '\n\n'; // text before and after a tool call are separate paragraphs
       break;
@@ -329,11 +343,11 @@ acp.onPermission = async (params, reply) => {
   const reject = (params.options || []).find((o) => o.kind === 'reject_once') || (params.options || [])[1];
   let detail = '';
   if (t.raw) { try { detail = typeof t.raw === 'string' ? t.raw : JSON.stringify(t.raw, null, 1); } catch {} }
-  const text = `🔐 Агент просит разрешение:\n**${t.title || 'действие'}**` + (detail ? '\n```\n' + detail.slice(0, 1500) + '\n```' : '');
+  const text = L('🔐 Агент просит разрешение:', '🔐 The agent asks for permission:') + `\n**${t.title || L('действие', 'action')}**` + (detail ? '\n```\n' + detail.slice(0, 1500) + '\n```' : '');
   try {
     const m = await send(c.id, text, { reply_markup: { inline_keyboard: [[
-      { text: '✅ Разрешить', callback_data: `p:${key}:a` }, { text: '❌ Отклонить', callback_data: `p:${key}:r` }]] } });
-    permissions.set(key, { reply, chatId: c.id, messageId: m.message_id, title: t.title || 'действие', allow: allow && allow.optionId, reject: reject && reject.optionId });
+      { text: L('✅ Разрешить', '✅ Allow'), callback_data: `p:${key}:a` }, { text: L('❌ Отклонить', '❌ Deny'), callback_data: `p:${key}:r` }]] } });
+    permissions.set(key, { reply, chatId: c.id, messageId: m.message_id, title: t.title || L('действие', 'action'), allow: allow && allow.optionId, reject: reject && reject.optionId });
   } catch (e) { log('permission message failed: ' + e.message); reply(null); }
 };
 
@@ -351,13 +365,13 @@ const stripImageLinks = (text) => text.replace(/!\[[^\]]*\]\(https?:\/\/127\.0\.
 
 // ---------------------------------------------------------------- prompts
 async function prompt(c, blocks, label) {
-  if (c.busy) return send(c.id, '⏳ Ещё работаю над прошлым запросом. /stop — прервать его.');
+  if (c.busy) return send(c.id, L('⏳ Ещё работаю над прошлым запросом. /stop — прервать его.', '⏳ Still working on the previous request. /stop to cancel it.'));
   c.busy = true; c.reply = ''; c.tools = []; c.toolInfo = new Map(); c.thinking = false; c.lastUse = Date.now();
   const typing = setInterval(() => tg('sendChatAction', { chat_id: c.id, action: 'typing' }).catch(() => {}), 5000);
   tg('sendChatAction', { chat_id: c.id, action: 'typing' }).catch(() => {});
   let stop = 'error';
   try {
-    const m = await send(c.id, acp.proc ? '⏳ Работаю…' : '⏳ Запускаю агента (секунд 10–20)…', stopKeyboard());
+    const m = await send(c.id, acp.proc ? L('⏳ Работаю…', '⏳ Working…') : L('⏳ Запускаю агента (секунд 10–20)…', '⏳ Starting the agent (10–20 seconds)…'), stopKeyboard());
     c.progressId = m.message_id; c.lastEdit = Date.now();
     await ensureSession(c);
     await maybeStartLocalModel(c);
@@ -365,15 +379,16 @@ async function prompt(c, blocks, label) {
     stop = r.stopReason; c.turns += 1; persist();
   } catch (e) {
     log(`prompt failed: ${e.stack || e}`);
-    c.reply += (c.reply ? '\n\n' : '') + '⚠️ Ошибка: ' + e.message;
+    c.reply += (c.reply ? '\n\n' : '') + L('⚠️ Ошибка: ', '⚠️ Error: ') + e.message;
   } finally { clearInterval(typing); }
-  const note = { cancelled: '\n\n⏹ Остановлено.', max_tokens: '\n\n✂️ Ответ обрезан по лимиту длины.', refusal: '\n\n🚫 Модель отказалась отвечать.' }[stop] || '';
-  const full = (c.reply.trim() || (stop === 'end_turn' ? '✓ Готово.' : '')) + note;
+  const note = { cancelled: L('\n\n⏹ Остановлено.', '\n\n⏹ Stopped.'), max_tokens: L('\n\n✂️ Ответ обрезан по лимиту длины.', '\n\n✂️ The reply was cut at the length limit.'),
+    refusal: L('\n\n🚫 Модель отказалась отвечать.', '\n\n🚫 The model refused to answer.') }[stop] || '';
+  const full = (c.reply.trim() || (stop === 'end_turn' ? L('✓ Готово.', '✓ Done.') : '')) + note;
   const pics = picturesIn(full);
-  const text = stripImageLinks(full).trim() || '✓ Готово.';
+  const text = stripImageLinks(full).trim() || L('✓ Готово.', '✓ Done.');
   const parts = chunks(text);
   try {
-    const toolsLine = c.tools.length ? `🔧 ${c.tools.length} ${c.tools.length === 1 ? 'действие' : 'действий'}: ` + c.tools.slice(-4).map((t) => t.title).join(', ') + '\n\n' : '';
+    const toolsLine = c.tools.length ? `🔧 ${c.tools.length} ${c.tools.length === 1 ? L('действие', 'action') : L('действий', 'actions')}: ` + c.tools.slice(-4).map((t) => t.title).join(', ') + '\n\n' : '';
     await edit(c.id, c.progressId, (toolsLine + parts[0]).slice(0, 4000), { reply_markup: { inline_keyboard: [] } });
   } catch { await send(c.id, parts[0]).catch(() => {}); }
   for (const p of parts.slice(1)) await send(c.id, p).catch((e) => log('send failed: ' + e.message));
@@ -412,19 +427,19 @@ async function maybeStartLocalModel(c) {
   if (!Array.isArray(sel) || !String(sel[0]).startsWith('local-')) return;
   if ((await httpJson('http://127.0.0.1:8081/health')).status === 200) return;
   const reg = readJson(path.join(ROOT, 'models', 'registry.json'), { models: [] }).models.find((e) => e.id === sel[1]);
-  if (!reg) throw new Error('локальная модель не найдена в лаунчере — выберите другую: /model');
-  if (c.progressId) await edit(c.id, c.progressId, `⏳ Загружаю локальную модель ${reg.title} (1–3 минуты)…`).catch(() => {});
-  if (!(await ensureLauncher())) throw new Error('не удалось запустить лаунчер, чтобы загрузить локальную модель');
+  if (!reg) throw new Error(L('локальная модель не найдена в лаунчере — выберите другую: /model', 'the local model was not found in the launcher — pick another one: /model'));
+  if (c.progressId) await edit(c.id, c.progressId, L(`⏳ Загружаю локальную модель ${reg.title} (1–3 минуты)…`, `⏳ Loading the local model ${reg.title} (1–3 minutes)…`)).catch(() => {});
+  if (!(await ensureLauncher())) throw new Error(L('не удалось запустить лаунчер, чтобы загрузить локальную модель', 'could not start the launcher to load the local model'));
   await httpJson(LAUNCHER + '/api/model/start', 'POST', { id: reg.id, ctx: reg.ctx });
   for (let i = 0; i < 180; i++) {
     await sleep(2000);
     if ((await httpJson('http://127.0.0.1:8081/health')).status === 200) return;
   }
-  throw new Error('локальная модель не загрузилась за 6 минут — посмотрите лаунчер');
+  throw new Error(L('локальная модель не загрузилась за 6 минут — посмотрите лаунчер', 'the local model did not load within 6 minutes — check the launcher'));
 }
 
 // ---------------------------------------------------------------- commands and menus
-const HELP = [
+const HELP_RU = [
   '**J.A.R.V.I.S. на связи.** Пишите задачу обычным сообщением — агент работает на вашем ПК.',
   '',
   '/model — выбрать модель и глубину рассуждений',
@@ -437,6 +452,20 @@ const HELP = [
   'Фото с подписью вроде «убери со стола всё лишнее» или «добавь на полку цветок» — агент отредактирует его и пришлёт результат (2–6 минут).',
   'Опасные действия агент выполнит только после вашей кнопки «Разрешить».',
 ].join('\n');
+const HELP_EN = [
+  '**J.A.R.V.I.S. online.** Send a task as a normal message — the agent works on your PC.',
+  '',
+  '/model — pick the model and reasoning depth',
+  '/mode — Full mode (all tools) or Lite (for local models)',
+  '/new — start a new session',
+  '/stop — cancel the current task',
+  '/status — what is selected now',
+  '',
+  'You can send photos and files — they are saved to the Telegram folder in your projects, and the agent sees them.',
+  'A photo with a caption like "clear the clutter off the desk" or "add a flower to the shelf" — the agent edits it and sends the result back (2–6 minutes).',
+  'The agent runs risky actions only after you press "Allow".',
+].join('\n');
+const HELP_TEXT = () => L(HELP_RU, HELP_EN);
 
 function modelMenu(c) {
   const opt = (c.options || []).find((o) => o.id === 'model');
@@ -456,12 +485,12 @@ function modelMenu(c) {
 async function showModels(c) {
   await ensureSession(c);
   const cur = currentModelName(c);
-  await send(c.id, `🧠 Модель сейчас: **${cur}**\nВыберите другую (для текущей сессии и следующих). Нижний ряд — глубина рассуждений.`,
+  await send(c.id, L(`🧠 Модель сейчас: **${cur}**\nВыберите другую (для текущей сессии и следующих). Нижний ряд — глубина рассуждений.`, `🧠 Current model: **${cur}**\nPick another one (for this session and the next ones). The bottom row is the reasoning depth.`),
     { reply_markup: { inline_keyboard: modelMenu(c) } });
 }
 function currentModelName(c) {
   const opt = (c.options || []).find((o) => o.id === 'model');
-  if (!opt) return 'по умолчанию';
+  if (!opt) return L('по умолчанию', 'default');
   for (const g of opt.options || []) for (const o of g.options || [g]) if (o.value === opt.currentValue) return (g.name && g.options ? `${g.name} · ` : '') + o.name;
   return String(opt.currentValue);
 }
@@ -471,10 +500,10 @@ async function showStatus(c) {
   const llama = (await httpJson('http://127.0.0.1:8081/health')).status === 200;
   const comfy = (await httpJson('http://127.0.0.1:8188/system_stats')).status === 200;
   await send(c.id, [
-    `**Сессия:** ${c.sessionId ? `${c.turns} сообщ.` : 'новая'} · ${PRESETS[c.preset] || c.preset}`,
-    `**Модель:** ${c.options ? currentModelName(c) : (c.model ? 'выбрана' : 'по умолчанию')}` + (eff ? ` · рассуждения: ${EFFORTS[eff.currentValue] || eff.currentValue}` : ''),
-    `**Локальная модель:** ${llama ? 'загружена' : 'не загружена'} · **ComfyUI:** ${comfy ? 'запущен' : 'выключен'}`,
-    `**Папка:** ${PROJECTS}`,
+    `**${L('Сессия', 'Session')}:** ${c.sessionId ? L(`${c.turns} сообщ.`, `${c.turns} msgs`) : L('новая', 'new')} · ${PRESETS[c.preset] || c.preset}`,
+    `**${L('Модель', 'Model')}:** ${c.options ? currentModelName(c) : (c.model ? L('выбрана', 'selected') : L('по умолчанию', 'default'))}` + (eff ? ` · ${L('рассуждения', 'reasoning')}: ${EFFORTS[eff.currentValue] || eff.currentValue}` : ''),
+    `**${L('Локальная модель', 'Local model')}:** ${llama ? L('загружена', 'loaded') : L('не загружена', 'not loaded')} · **ComfyUI:** ${comfy ? L('запущен', 'running') : L('выключен', 'off')}`,
+    `**${L('Папка', 'Folder')}:** ${PROJECTS}`,
   ].join('\n'));
 }
 
@@ -483,30 +512,30 @@ async function onCallback(q) {
   const data = q.data || '';
   let answer = '';
   try {
-    if (data === 'stop') { if (c.busy && c.sessionId) acp.notify('session/cancel', { sessionId: c.sessionId }); answer = 'Останавливаю…'; }
+    if (data === 'stop') { if (c.busy && c.sessionId) acp.notify('session/cancel', { sessionId: c.sessionId }); answer = L('Останавливаю…', 'Stopping…'); }
     else if (data.startsWith('p:')) {
       const [, key, choice] = data.split(':');
       const p = permissions.get(key);
-      if (!p) answer = 'Запрос уже неактуален';
+      if (!p) answer = L('Запрос уже неактуален', 'This request is no longer active');
       else {
         permissions.delete(key);
         p.reply(choice === 'a' ? p.allow : p.reject);
-        answer = choice === 'a' ? 'Разрешено' : 'Отклонено';
-        await edit(p.chatId, p.messageId, `${choice === 'a' ? '✅ Разрешено' : '❌ Отклонено'}: ${p.title}`, { reply_markup: { inline_keyboard: [] } }).catch(() => {});
+        answer = choice === 'a' ? L('Разрешено', 'Allowed') : L('Отклонено', 'Denied');
+        await edit(p.chatId, p.messageId, `${choice === 'a' ? L('✅ Разрешено', '✅ Allowed') : L('❌ Отклонено', '❌ Denied')}: ${p.title}`, { reply_markup: { inline_keyboard: [] } }).catch(() => {});
       }
     } else if (data.startsWith('m:') || data.startsWith('e:')) {
       await ensureSession(c);
       const isModel = data.startsWith('m:');
       const value = isModel ? c.modelList[Number(data.slice(2))] : data.slice(2);
-      if (value === undefined) answer = 'Меню устарело — /model';
+      if (value === undefined) answer = L('Меню устарело — /model', 'This menu is outdated — /model');
       else {
         c.options = (await acp.request('session/set_config_option', { sessionId: c.sessionId, configId: isModel ? 'model' : 'reasoning_effort', value })).configOptions;
         if (isModel) c.model = value; else c.effort = value;
         persist();
-        answer = 'Готово';
+        answer = L('Готово', 'Done');
         let note = '';
-        try { if (isModel && String(JSON.parse(value)[0]).startsWith('local-')) note = '\n💻 Локальная модель: загружу её сама при следующем сообщении. Для неё удобнее /mode → Лёгкий режим.'; } catch {}
-        await edit(c.id, q.message.message_id, `🧠 Модель: **${currentModelName(c)}**${note}`, { reply_markup: { inline_keyboard: modelMenu(c) } }).catch(() => {});
+        try { if (isModel && String(JSON.parse(value)[0]).startsWith('local-')) note = L('\n💻 Локальная модель: загружу её сама при следующем сообщении. Для неё удобнее /mode → Лёгкий режим.', '\n💻 Local model: I will load it with your next message. /mode → Lite mode works better for it.'); } catch {}
+        await edit(c.id, q.message.message_id, `🧠 ${L('Модель', 'Model')}: **${currentModelName(c)}**${note}`, { reply_markup: { inline_keyboard: modelMenu(c) } }).catch(() => {});
       }
     } else if (data.startsWith('mode:')) {
       const id = data.slice(5);
@@ -516,12 +545,12 @@ async function onCallback(q) {
         c.preset = id; persist();
         const started = c.sessionId && c.turns > 0;
         answer = PRESETS[id];
-        await edit(c.id, q.message.message_id, `⚙️ ${PRESETS[id]}.` + (changed && started ? ' Применится в новой сессии.' : ''), {
-          reply_markup: { inline_keyboard: changed && started ? [[{ text: '🆕 Начать новую сессию', callback_data: 'new' }]] : [] } }).catch(() => {});
+        await edit(c.id, q.message.message_id, `⚙️ ${PRESETS[id]}.` + (changed && started ? L(' Применится в новой сессии.', ' Applies to a new session.') : ''), {
+          reply_markup: { inline_keyboard: changed && started ? [[{ text: L('🆕 Начать новую сессию', '🆕 Start a new session'), callback_data: 'new' }]] : [] } }).catch(() => {});
         if (changed && !started) { await closeSession(c); c.sessionId = null; persist(); }
       }
-    } else if (data === 'new') { await closeSession(c); c.sessionId = null; c.turns = 0; persist(); answer = 'Новая сессия'; await send(c.id, '🆕 Новая сессия. Слушаю.'); }
-  } catch (e) { answer = 'Ошибка: ' + e.message.slice(0, 150); log('callback: ' + e.message); }
+    } else if (data === 'new') { await closeSession(c); c.sessionId = null; c.turns = 0; persist(); answer = L('Новая сессия', 'New session'); await send(c.id, L('🆕 Новая сессия. Слушаю.', '🆕 New session. Listening.')); }
+  } catch (e) { answer = L('Ошибка: ', 'Error: ') + e.message.slice(0, 150); log('callback: ' + e.message); }
   await tg('answerCallbackQuery', { callback_query_id: q.id, text: answer }).catch(() => {});
 }
 
@@ -540,33 +569,34 @@ async function onMessage(msg) {
         delete cfg.pair;
         writeJson(CONFIG, cfg);
         log(`paired user ${msg.from.id}`);
-        return send(msg.chat.id, '✅ Телефон привязан к вашему J.A.R.V.I.S.\n\n' + HELP);
+        return send(msg.chat.id, L('✅ Телефон привязан к вашему J.A.R.V.I.S.\n\n', '✅ This phone is now paired with your J.A.R.V.I.S.\n\n') + HELP_TEXT());
       }
       cfg.pair.fails = (cfg.pair.fails || 0) + 1;
       if (cfg.pair.fails >= 5) delete cfg.pair; // brute force: the code dies
       writeJson(CONFIG, cfg);
-      return send(msg.chat.id, '❌ Неверный код.');
+      return send(msg.chat.id, L('❌ Неверный код.', '❌ Wrong code.'));
     }
     if (Date.now() - (warned.get(msg.from.id) || 0) > 3600000) {
       warned.set(msg.from.id, Date.now());
       log(`stranger ${msg.from.id} (${msg.from.username || ''})`);
-      return send(msg.chat.id, '🔒 Это личный бот J.A.R.V.I.S. Доступ выдаёт владелец в лаунчере: «Telegram-бот» → «Привязать телефон».');
+      return send(msg.chat.id, L('🔒 Это личный бот J.A.R.V.I.S. Доступ выдаёт владелец в лаунчере: «Telegram-бот» → «Привязать телефон».', '🔒 This is a private J.A.R.V.I.S. bot. Its owner grants access in the launcher: "Telegram bot" → "Pair a phone".'));
     }
     return;
   }
 
   const c = chatOf(msg.chat.id);
   const cmd = (text.match(/^\/(\w+)/) || [])[1];
-  if (cmd === 'start' || cmd === 'help') return send(c.id, HELP);
-  if (cmd === 'new') { await closeSession(c); c.sessionId = null; c.turns = 0; persist(); return send(c.id, `🆕 Новая сессия (${PRESETS[c.preset]}). Слушаю.`); }
-  if (cmd === 'stop') { if (c.busy && c.sessionId) { acp.notify('session/cancel', { sessionId: c.sessionId }); return send(c.id, '⏹ Останавливаю…'); } return send(c.id, 'Сейчас ничего не выполняется.'); }
+  if (cmd === 'start' || cmd === 'help') return send(c.id, HELP_TEXT());
+  if (cmd === 'new') { await closeSession(c); c.sessionId = null; c.turns = 0; persist(); return send(c.id, L(`🆕 Новая сессия (${PRESETS[c.preset]}). Слушаю.`, `🆕 New session (${PRESETS[c.preset]}). Listening.`)); }
+  if (cmd === 'stop') { if (c.busy && c.sessionId) { acp.notify('session/cancel', { sessionId: c.sessionId }); return send(c.id, L('⏹ Останавливаю…', '⏹ Stopping…')); } return send(c.id, L('Сейчас ничего не выполняется.', 'Nothing is running right now.')); }
   if (cmd === 'status') return showStatus(c);
   if (cmd === 'model') return showModels(c).catch((e) => send(c.id, '⚠️ ' + e.message));
   if (cmd === 'mode') {
-    return send(c.id, `Режим сейчас: **${PRESETS[c.preset]}**.\nПолный — все инструменты (браузер, Windows, картинки, Blender…), лучше с DeepSeek. Лёгкий — компактный набор для локальных моделей.`,
+    return send(c.id, L(`Режим сейчас: **${PRESETS[c.preset]}**.\nПолный — все инструменты (браузер, Windows, картинки, Blender…), лучше с DeepSeek. Лёгкий — компактный набор для локальных моделей.`,
+      `Current mode: **${PRESETS[c.preset]}**.\nFull: all tools (browser, Windows, images, Blender…), best with DeepSeek. Lite: a compact set for local models.`),
       { reply_markup: { inline_keyboard: [Object.entries(PRESETS).map(([id, name]) => ({ text: (id === c.preset ? '✅ ' : '') + name, callback_data: `mode:${id}` }))] } });
   }
-  if (cmd) return send(c.id, 'Не знаю такой команды. /help — список.');
+  if (cmd) return send(c.id, L('Не знаю такой команды. /help — список.', 'Unknown command. /help for the list.'));
 
   // Photos and files: saved into the projects folder, the agent gets the path (it has read/read_image).
   const notes = [];
@@ -574,11 +604,11 @@ async function onMessage(msg) {
     const stamp = new Date().toISOString().replace(/[:T]/g, '-').slice(0, 19);
     if (msg.photo && msg.photo.length) notes.push(await tgDownload(msg.photo[msg.photo.length - 1].file_id, path.join(INBOX, `photo_${stamp}.jpg`)));
     if (msg.document) notes.push(await tgDownload(msg.document.file_id, path.join(INBOX, `${stamp}_${(msg.document.file_name || 'file').replace(/[<>:"/\\|?*]/g, '_')}`)));
-    if (msg.voice || msg.audio || msg.video_note) return send(c.id, '🎙 Голосовые пока не понимаю — напишите текстом.');
-  } catch (e) { return send(c.id, '⚠️ Не удалось получить файл: ' + e.message); }
+    if (msg.voice || msg.audio || msg.video_note) return send(c.id, L('🎙 Голосовые пока не понимаю — напишите текстом.', "🎙 I can't understand voice messages yet — please type."));
+  } catch (e) { return send(c.id, L('⚠️ Не удалось получить файл: ', '⚠️ Could not get the file: ') + e.message); }
   if (!text && !notes.length) return;
-  const body = (text || (notes.length ? 'Посмотри присланный файл.' : '')) +
-    (notes.length ? '\n\n[Файлы из Telegram сохранены: ' + notes.join(', ') + ']' : '');
+  const body = (text || (notes.length ? L('Посмотри присланный файл.', 'Look at the file I sent.') : '')) +
+    (notes.length ? L('\n\n[Файлы из Telegram сохранены: ', '\n\n[Files from Telegram saved: ') + notes.join(', ') + ']' : '');
   return prompt(c, [{ type: 'text', text: body }]);
 }
 
@@ -597,12 +627,20 @@ async function onMessage(msg) {
   }
   saveStatus({ telegram: 'on', username: me.username, error: null });
   log(`connected as @${me.username}`);
-  await tg('setMyCommands', { commands: [
-    { command: 'model', description: 'Выбрать модель' }, { command: 'mode', description: 'Полный / Лёгкий режим' },
-    { command: 'new', description: 'Новая сессия' }, { command: 'stop', description: 'Прервать задачу' },
-    { command: 'status', description: 'Что сейчас выбрано' }, { command: 'help', description: 'Помощь' }] }).catch(() => {});
+  // The command menu follows the language too (re-sent when it changes).
+  let menuLang = null;
+  const syncMenu = () => {
+    if (menuLang === lang()) return;
+    menuLang = lang();
+    tg('setMyCommands', { commands: [
+      { command: 'model', description: L('Выбрать модель', 'Pick a model') }, { command: 'mode', description: L('Полный / Лёгкий режим', 'Full / Lite mode') },
+      { command: 'new', description: L('Новая сессия', 'New session') }, { command: 'stop', description: L('Прервать задачу', 'Cancel the task') },
+      { command: 'status', description: L('Что сейчас выбрано', 'What is selected') }, { command: 'help', description: L('Помощь', 'Help') }] }).catch(() => { menuLang = null; });
+  };
+  syncMenu();
   let offset = 0;
   for (;;) {
+    syncMenu();
     try {
       const updates = await tg('getUpdates', { offset, timeout: 50, allowed_updates: ['message', 'callback_query'] }, 70000);
       if (status.telegram !== 'on') saveStatus({ telegram: 'on', error: null });

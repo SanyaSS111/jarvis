@@ -6,6 +6,7 @@ use std::sync::Mutex;
 use std::time::Instant;
 
 use crate::win32::*;
+use crate::lang::tr;
 
 #[derive(Clone, Debug, Default)]
 pub struct Network {
@@ -35,9 +36,9 @@ fn kind_of(row: &MIB_IFROW) -> &'static str {
         IF_TYPE_ETHERNET => "Ethernet",
         IF_TYPE_IEEE80211 => "Wi-Fi",
         IF_TYPE_PPP => "PPP",
-        IF_TYPE_TUNNEL => "Туннель",
+        IF_TYPE_TUNNEL => tr("Туннель", "Tunnel"),
         IF_TYPE_SOFTWARE_LOOPBACK => "Loopback",
-        _ => "Прочее",
+        _ => tr("Прочее", "Other"),
     }
 }
 
@@ -141,7 +142,7 @@ pub fn sample() -> Network {
         }
         None => Network {
             name: "—".into(),
-            kind: "Нет соединения".into(),
+            kind: tr("Нет соединения", "No connection").into(),
             link_mbps: 0,
             down_kbs,
             up_kbs,

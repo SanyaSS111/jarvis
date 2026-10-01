@@ -1,6 +1,7 @@
 // Hugging Face catalog: search GGUF repos and turn a repo's file tree into installable
 // variants ("quants"), each with its files, sizes and SHA-256 from the LFS metadata.
 'use strict';
+const { T } = require('./i18n');
 
 const API = 'https://huggingface.co/api';
 const cache = new Map(); // url -> {at, data}
@@ -10,7 +11,7 @@ async function getJson(url) {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.at < TTL) return hit.data;
   const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
-  if (!res.ok) throw new Error(`Hugging Face ответил ${res.status}`);
+  if (!res.ok) throw new Error(T(`Hugging Face ответил ${res.status}`, `Hugging Face responded ${res.status}`));
   const data = await res.json();
   cache.set(url, { at: Date.now(), data });
   return data;
@@ -72,7 +73,7 @@ async function search(query, cursor) {
   let page = cache.get(url);
   if (!page || Date.now() - page.at > TTL) {
     const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(20000) });
-    if (!res.ok) throw new Error(`Hugging Face ответил ${res.status}`);
+    if (!res.ok) throw new Error(T(`Hugging Face ответил ${res.status}`, `Hugging Face responded ${res.status}`));
     const link = res.headers.get('link') || '';
     const m = link.match(/[?&]cursor=([^&>]+)[^>]*>;\s*rel="next"/);
     page = { at: Date.now(), data: { list: await res.json(), next: m ? decodeURIComponent(m[1]) : null } };

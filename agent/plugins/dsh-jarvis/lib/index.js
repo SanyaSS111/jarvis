@@ -9,7 +9,7 @@
 //   GET  /dsh-jarvis/pending  ?session=<id>&after=<seq>    -> {ok, items:[{seq, text, mime, audioBase64}]}
 //   POST /dsh-jarvis/speak    {text}                       -> {ok, mime, audioBase64}   (greeting / test)
 //   GET  /dsh-jarvis/status                                -> {ok, activeSessions, voices}
-//   GET  /dsh-jarvis/theme                                 -> {ok, enabled, accent:[r,g,b]}   (Jarvis skin)
+//   GET  /dsh-jarvis/theme                                 -> {ok, enabled, accent:[r,g,b], lang}   (Jarvis skin + UI language)
 //   POST /dsh-jarvis/theme    {enabled}                    -> {ok, enabled}
 //   GET  /dsh-jarvis/theme.css                             -> the skin stylesheet (lib/theme.css)
 
@@ -39,10 +39,17 @@ const DEFAULTS = {
   // accent colour the skin follows.
   themeFile: 'C:\\LLM\\data\\agent\\jarvis-theme.json',
   hudConfig: path.join(process.env.APPDATA || '', 'JarvisHUD2', 'config.json'),
+  // Interface language chosen in the launcher ({"lang": "en" | "ru"}); English when missing.
+  settingsFile: 'C:\\LLM\\data\\launcher\\settings.json',
 }
 
 async function readJson(file) {
   try { return JSON.parse(await readFile(file, 'utf8')) } catch { return null }
+}
+
+async function uiLang(cfg) {
+  const s = await readJson(cfg.settingsFile)
+  return s && s.lang === 'ru' ? 'ru' : 'en'
 }
 
 async function themeState(cfg) {
@@ -51,7 +58,7 @@ async function themeState(cfg) {
   const accent = Array.isArray(hud && hud.accent) && hud.accent.length === 3
     ? hud.accent.map((v) => Math.round(Math.min(1, Math.max(0, Number(v) || 0)) * 255))
     : [92, 225, 255]
-  return { enabled: !saved || saved.enabled !== false, accent }
+  return { enabled: !saved || saved.enabled !== false, accent, lang: await uiLang(cfg) }
 }
 
 // ------------------------------------------------------------ text helpers
@@ -66,9 +73,15 @@ function blocksToText(content) {
 }
 
 /** Markdown → something pleasant to hear. Code is summarized, not read. */
-export function toSpeech(text, maxChars) {
+const SPEECH = {
+  ru: { code: ' (код показан в чате) ', link: ' ссылка ', more: ' Остальное — в чате.' },
+  en: { code: ' (the code is in the chat) ', link: ' a link ', more: ' The rest is in the chat.' },
+}
+
+export function toSpeech(text, maxChars, lang = 'ru') {
+  const w = SPEECH[lang] || SPEECH.ru
   let s = String(text || '')
-  s = s.replace(/```[\s\S]*?```/g, ' (код показан в чате) ')
+  s = s.replace(/```[\s\S]*?```/g, w.code)
   s = s.replace(/`([^`]+)`/g, '$1')
   s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, '')
   s = s.replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
@@ -77,12 +90,12 @@ export function toSpeech(text, maxChars) {
   s = s.replace(/^\s*\d+\.\s+/gm, '')
   s = s.replace(/^\s*\|.*\|\s*$/gm, ' ')
   s = s.replace(/[*_~>#]/g, '')
-  s = s.replace(/https?:\/\/\S+/g, ' ссылка ')
+  s = s.replace(/https?:\/\/\S+/g, w.link)
   s = s.replace(/\s+/g, ' ').trim()
   if (s.length > maxChars) {
     const cut = s.slice(0, maxChars)
     const end = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('! '), cut.lastIndexOf('? '))
-    s = (end > maxChars * 0.5 ? cut.slice(0, end + 1) : cut) + ' Остальное — в чате.'
+    s = (end > maxChars * 0.5 ? cut.slice(0, end + 1) : cut) + w.more
   }
   return s
 }
@@ -202,12 +215,14 @@ export function apply(ctx, config) {
     collectors.delete(sid)
     // Speak the final answer: the last assistant message of the turn.
     const last = parts.length ? parts[parts.length - 1] : ''
-    const spoken = toSpeech(last, cfg.maxSpokenChars)
-    if (!spoken) return
     const id = ++seq
-    synthesize(cfg, spoken)
-      .then((out) => enqueue(sid, { seq: id, text: spoken, ...out }))
-      .catch((err) => enqueue(sid, { seq: id, text: spoken, error: String(err && err.message || err) }))
+    uiLang(cfg).then((lang) => {
+      const spoken = toSpeech(last, cfg.maxSpokenChars, lang)
+      if (!spoken) return
+      return synthesize(cfg, spoken)
+        .then((out) => enqueue(sid, { seq: id, text: spoken, ...out }))
+        .catch((err) => enqueue(sid, { seq: id, text: spoken, error: String(err && err.message || err) }))
+    })
   }), 'dsh-jarvis: speak finished replies')
 
   ctx.effect(() => ctx.webServer.register({
@@ -247,7 +262,7 @@ export function apply(ctx, config) {
       if (req.method !== 'POST') { writeJson(res, 405, { ok: false }); return }
       try {
         const body = await readBody(req)
-        const spoken = toSpeech(String(body.text || ''), cfg.maxSpokenChars)
+        const spoken = toSpeech(String(body.text || ''), cfg.maxSpokenChars, await uiLang(cfg))
         if (!spoken) { writeJson(res, 400, { ok: false, error: 'text required' }); return }
         const out = await synthesize(cfg, spoken)
         writeJson(res, 200, { ok: true, text: spoken, ...out })

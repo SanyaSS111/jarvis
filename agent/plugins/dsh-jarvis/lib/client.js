@@ -99,18 +99,21 @@ window.__ModuleLoader__.load({
       React.createElement('circle', { cx: 12, cy: 12, r: 6.5, fill: 'none', stroke: '#8fe3ff', strokeWidth: 1.2, strokeDasharray: '2 1.6' }),
       React.createElement('circle', { cx: 12, cy: 12, r: 3.2, fill: '#bff3ff' }))
 
-    const STATUS = {
-      idle: 'Готов',
-      listening: 'Слушаю…',
-      thinking: 'Думаю…',
-      speaking: 'Говорю…',
-      error: 'Ошибка',
-    }
+    // Interface language from the launcher (sent with the theme state, see syncTheme); English by default.
+    let LANG = 'en'
+    const L = (ru, en) => (LANG === 'ru' ? ru : en)
+    const STATUS = () => ({
+      idle: L('Готов', 'Ready'),
+      listening: L('Слушаю…', 'Listening…'),
+      thinking: L('Думаю…', 'Thinking…'),
+      speaking: L('Говорю…', 'Speaking…'),
+      error: L('Ошибка', 'Error'),
+    })
 
     // ---------------------------------------------------------------- chat reading
 
     /** Prefix put on spoken messages; ~/.dsh/AGENTS.md tells the agent to answer these briefly, Jarvis-style. */
-    const VOICE_MARKER = '[Голос]'
+    const VOICE_MARKER = () => L('[Голос]', '[Voice]')
 
     /** Only the spoken part: everything before a line consisting of `---` (details for the chat come after it). */
     function spokenPart(text) {
@@ -142,14 +145,14 @@ window.__ModuleLoader__.load({
       const root = document.createElement('div')
       root.className = 'dj-overlay dj-state-idle'
       root.setAttribute('role', 'dialog')
-      root.setAttribute('aria-label', 'Голосовой режим Джарвис')
+      root.setAttribute('aria-label', L('Голосовой режим Джарвис', 'Jarvis voice mode'))
       root.innerHTML = `
-        <button class="dj-reactor" type="button" aria-label="Вернуться в чат">
+        <button class="dj-reactor" type="button" aria-label="${L('Вернуться в чат', 'Back to chat')}">
           <div class="dj-glow"></div>${REACTOR_SVG}
         </button>
         <div class="dj-status" aria-live="polite"></div>
         <div class="dj-caption"></div>
-        <div class="dj-hint">Нажмите на реактор или Esc, чтобы вернуться в чат</div>`
+        <div class="dj-hint">${L('Нажмите на реактор или Esc, чтобы вернуться в чат', 'Click the reactor or press Esc to return to the chat')}</div>`
       document.body.appendChild(root)
       requestAnimationFrame(() => root.classList.add('dj-open'))
 
@@ -170,7 +173,7 @@ window.__ModuleLoader__.load({
       function setState(next, caption) {
         state = next
         root.className = 'dj-overlay dj-open dj-state-' + next
-        statusEl.textContent = STATUS[next] || ''
+        statusEl.textContent = STATUS()[next] || ''
         statusEl.classList.toggle('dj-err', next === 'error')
         if (caption !== undefined) captionEl.textContent = caption
       }
@@ -199,7 +202,7 @@ window.__ModuleLoader__.load({
           tick()
           return true
         } catch (e) {
-          setState('error', 'Нет доступа к микрофону. Разрешите микрофон для этого окна и откройте режим снова.')
+          setState('error', L('Нет доступа к микрофону. Разрешите микрофон для этого окна и откройте режим снова.', 'No microphone access. Allow the microphone for this window and open voice mode again.'))
           return false
         }
       }
@@ -209,11 +212,11 @@ window.__ModuleLoader__.load({
       function listen() {
         if (closed) return
         const Ctor = speechCtor()
-        if (!Ctor) { setState('error', 'Этот браузер не умеет распознавать речь. Откройте DeepSeek Harness ярлыком (окно Edge).'); return }
+        if (!Ctor) { setState('error', L('Этот браузер не умеет распознавать речь. Откройте DeepSeek Harness ярлыком (окно Edge).', 'This browser cannot recognize speech. Open DeepSeek Harness from its shortcut (an Edge window).')); return }
         if (recognition) { try { recognition.abort() } catch (e) {} }
         const rec = new Ctor()
         recognition = rec
-        rec.lang = 'ru-RU'
+        rec.lang = L('ru-RU', 'en-US')
         rec.continuous = false
         rec.interimResults = true
         rec.maxAlternatives = 1
@@ -232,10 +235,10 @@ window.__ModuleLoader__.load({
           if (closed) return
           if (ev.error === 'no-speech' || ev.error === 'aborted') return
           if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-            setState('error', 'Распознавание речи запрещено. Разрешите микрофон для этого окна.')
+            setState('error', L('Распознавание речи запрещено. Разрешите микрофон для этого окна.', 'Speech recognition is blocked. Allow the microphone for this window.'))
             return
           }
-          setState('error', 'Ошибка распознавания: ' + ev.error)
+          setState('error', L('Ошибка распознавания: ', 'Recognition error: ') + ev.error)
         }
         rec.onend = () => {
           if (closed || recognition !== rec) return
@@ -250,7 +253,7 @@ window.__ModuleLoader__.load({
         const live = getLive()
         const actions = live.inputActions
         if (!actions || typeof actions.setDraft !== 'function' || typeof actions.submit !== 'function') {
-          setState('error', 'Поле ввода недоступно — откройте сессию и попробуйте снова.')
+          setState('error', L('Поле ввода недоступно — откройте сессию и попробуйте снова.', 'The input box is unavailable — open a session and try again.'))
           return
         }
         const last = live.lastAssistant
@@ -258,8 +261,8 @@ window.__ModuleLoader__.load({
         setLevel(0)
         setState('thinking', text)
         // The marker tells the agent (see ~/.dsh/AGENTS.md) this was spoken: short Jarvis-style reply.
-        actions.setDraft(VOICE_MARKER + ' ' + text)
-        setTimeout(() => { try { actions.submit() } catch (e) { setState('error', 'Не удалось отправить сообщение.') } }, 0)
+        actions.setDraft(VOICE_MARKER() + ' ' + text)
+        setTimeout(() => { try { actions.submit() } catch (e) { setState('error', L('Не удалось отправить сообщение.', 'Could not send the message.')) } }, 0)
       }
 
       async function speak(text) {
@@ -312,7 +315,7 @@ window.__ModuleLoader__.load({
       }
 
       async function greet() {
-        const item = await speak('Слушаю, сэр.')
+        const item = await speak(L('Слушаю, сэр.', 'At your service, sir.'))
         if (!closed) await play(item)
       }
 
@@ -381,8 +384,8 @@ window.__ModuleLoader__.load({
       return React.createElement('button', {
         type: 'button',
         className: 'dj-btn',
-        title: 'Голосовой режим (Джарвис)',
-        'aria-label': 'Голосовой режим (Джарвис)',
+        title: L('Голосовой режим (Джарвис)', 'Voice mode (Jarvis)'),
+        'aria-label': L('Голосовой режим (Джарвис)', 'Voice mode (Jarvis)'),
         onClick: open,
       }, ICON_SVG)
     }
@@ -430,7 +433,7 @@ window.__ModuleLoader__.load({
       try {
         const r = await fetch('/dsh-jarvis/theme', { cache: 'no-store' })
         const j = await r.json()
-        if (j && j.ok) applyTheme(j)
+        if (j && j.ok) { if (j.lang === 'ru' || j.lang === 'en') LANG = j.lang; applyTheme(j) }
       } catch (e) { /* server restarting — keep the current look */ }
     }
 
@@ -445,7 +448,7 @@ window.__ModuleLoader__.load({
       ensureStyle()
       startTheme()
       ctx.slots.inject('conversation.input.right', () => ctx.slots.register(
-        { name: 'conversation.input.right', id: 'dsh-jarvis', order: 1, label: () => 'Джарвис' },
+        { name: 'conversation.input.right', id: 'dsh-jarvis', order: 1, label: () => L('Джарвис', 'Jarvis') },
         (props) => React.createElement(ReactorButton, {
           input: props.input,
           inputActions: props.inputActions,

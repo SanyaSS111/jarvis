@@ -22,6 +22,8 @@ pub struct Config {
     pub positions: HashMap<String, [f32; 2]>,
     /// Мониторы, на которых HUD выключен.
     pub disabled_monitors: Vec<String>,
+    /// Язык интерфейса: "en" или "ru" (задаёт лаунчер).
+    pub lang: String,
 }
 
 impl Default for Config {
@@ -38,6 +40,7 @@ impl Default for Config {
             hidden: Vec::new(),
             positions: HashMap::new(),
             disabled_monitors: Vec::new(),
+            lang: "en".into(),
         }
     }
 }
@@ -53,10 +56,12 @@ pub fn path() -> PathBuf {
 
 impl Config {
     pub fn load() -> Self {
-        match std::fs::read_to_string(path()) {
+        let config: Self = match std::fs::read_to_string(path()) {
             Ok(text) => serde_json::from_str(&text).unwrap_or_default(),
             Err(_) => Self::default(),
-        }
+        };
+        crate::lang::set(&config.lang);
+        config
     }
 
     pub fn save(&self) {

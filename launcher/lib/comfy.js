@@ -2,6 +2,8 @@
 // tools\comfyui (variant picked for this GPU, SHA-256 checked), the ComfyUI-GGUF node, model folders in
 // models\comfyui (extra_model_paths.yaml), ready workflows for known models, and the server on :8188.
 'use strict';
+const { T } = require('./i18n');
+const lbl = (o) => (Array.isArray(o.label) ? T(...o.label) : o.label);
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
@@ -15,7 +17,7 @@ const VARIANTS = {
   // CUDA 13: RTX 20xx and newer.
   nvidia: { file: 'ComfyUI_windows_portable_nvidia.7z', size: 1925204508, sha: '7805f634fab51f63a238aaf0cfe2a9833bb7c86ddfc8400a60919f44460d7d65', bat: 'run_nvidia_gpu.bat', label: 'NVIDIA RTX (CUDA 13)' },
   // CUDA 12.6: the last one with GTX 10xx / 9xx and Volta, also fine for no-GPU (CPU mode).
-  nvidia_cu126: { file: 'ComfyUI_windows_portable_nvidia_cu126.7z', size: 1867201814, sha: '4f8c587c8319a3595dcdc6b8fbfc7234d2d02fa6b1a328c1ab3e819c97d95fb8', bat: 'run_nvidia_gpu.bat', label: 'NVIDIA GTX/старые карты (CUDA 12.6)' },
+  nvidia_cu126: { file: 'ComfyUI_windows_portable_nvidia_cu126.7z', size: 1867201814, sha: '4f8c587c8319a3595dcdc6b8fbfc7234d2d02fa6b1a328c1ab3e819c97d95fb8', bat: 'run_nvidia_gpu.bat', label: ['NVIDIA GTX/старые карты (CUDA 12.6)', 'NVIDIA GTX/older cards (CUDA 12.6)'] },
   amd: { file: 'ComfyUI_windows_portable_amd.7z', size: 1595844037, sha: '563da2462a866f8fdf8ccd091a8c0e185e785394408735f8e99647593a67dd79', bat: 'run_amd_gpu.bat', label: 'AMD Radeon' },
   intel: { file: 'ComfyUI_windows_portable_intel.7z', size: 1512836652, sha: '1041af3a25ca2c7b3615db3027ca0fd40df37c1758c4e9955e762672193ac4cc', bat: 'run_intel_gpu.bat', label: 'Intel Arc' },
 };
@@ -26,7 +28,7 @@ const GGUF_NODE = { url: 'https://codeload.github.com/leejet/ComfyUI-GGUF/zip/ed
 const TEMPLATES = {
   qwen_image21: [
     { url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/image_qwen_image_2_1_t2i.json', suffix: '' },
-    { url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/image_qwen_image_2_1_image_edit.json', suffix: ' — редактирование фото' },
+    { url: 'https://raw.githubusercontent.com/Comfy-Org/workflow_templates/main/templates/image_qwen_image_2_1_image_edit.json', suffix: [' — редактирование фото', ' — photo edit'] },
   ],
 };
 
@@ -84,13 +86,13 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
       });
       dl = null;
       if (code === 0 && (!size || fileLen(part) === size)) break;
-      if (attempt >= 20) throw new Error(`Не удалось скачать ${path.basename(file)} (curl ${code}). Проверьте интернет и нажмите «Установить» ещё раз — загрузка продолжится.`);
-      st.step = `${label}: обрыв связи, повтор через 5 с (попытка ${attempt}/20)`;
+      if (attempt >= 20) throw new Error(T(`Не удалось скачать ${path.basename(file)} (curl ${code}). Проверьте интернет и нажмите «Установить» ещё раз — загрузка продолжится.`, `Could not download ${path.basename(file)} (curl ${code}). Check your connection and press "Install" again — the download will resume.`));
+      st.step = T(`${label}: обрыв связи, повтор через 5 с (попытка ${attempt}/20)`, `${label}: connection lost, retrying in 5 s (attempt ${attempt}/20)`);
       await new Promise((r) => setTimeout(r, 5000));
     }
     if (sha) {
-      st.step = `${label}: проверка целостности`; st.done = 0; st.total = fileLen(part);
-      if ((await sha256(part)) !== sha) { fs.unlinkSync(part); throw new Error(`${path.basename(file)} повреждён при загрузке и удалён — нажмите «Установить» ещё раз.`); }
+      st.step = T(`${label}: проверка целостности`, `${label}: verifying`); st.done = 0; st.total = fileLen(part);
+      if ((await sha256(part)) !== sha) { fs.unlinkSync(part); throw new Error(T(`${path.basename(file)} повреждён при загрузке и удалён — нажмите «Установить» ещё раз.`, `${path.basename(file)} was corrupted during download and removed — press "Install" again.`)); }
     }
     fs.renameSync(part, file);
   }
@@ -110,44 +112,44 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     const pick = pickVariant(hw);
     const v = VARIANTS[pick.key];
     busy = true; st.status = 'installing'; st.error = null;
-    journal(`Установка ComfyUI ${VERSION} (${v.label}, ${(v.size / 1073741824).toFixed(1)} ГБ)…`);
+    journal(T(`Установка ComfyUI ${VERSION} (${lbl(v)}, ${(v.size / 1073741824).toFixed(1)} ГБ)…`, `Installing ComfyUI ${VERSION} (${lbl(v)}, ${(v.size / 1073741824).toFixed(1)} GB)…`));
     try {
       const free = fs.statfsSync(root);
-      if (free.bavail * free.bsize < v.size * 3) throw new Error(`Нужно около ${(v.size * 3 / 1073741824).toFixed(0)} ГБ свободного места (архив + распаковка).`);
+      if (free.bavail * free.bsize < v.size * 3) throw new Error(T(`Нужно около ${(v.size * 3 / 1073741824).toFixed(0)} ГБ свободного места (архив + распаковка).`, `About ${(v.size * 3 / 1073741824).toFixed(0)} GB of free space is needed (archive + unpacking).`));
       const archive = path.join(dlDir, v.file);
-      await download(BASE + v.file, archive, v.size, v.sha, 'Скачиваю ComfyUI');
+      await download(BASE + v.file, archive, v.size, v.sha, T('Скачиваю ComfyUI', 'Downloading ComfyUI'));
 
-      st.step = 'Распаковываю ComfyUI (несколько минут)…'; st.done = 0; st.total = 0;
+      st.step = T('Распаковываю ComfyUI (несколько минут)…', 'Unpacking ComfyUI (a few minutes)…'); st.done = 0; st.total = 0;
       const tmp = dir + '.tmp';
       fs.rmSync(tmp, { recursive: true, force: true });
       fs.mkdirSync(tmp, { recursive: true });
       const r = await run(tar, ['-xf', archive, '-C', tmp], { timeout: 30 * 60000 });
-      if (r.err) throw new Error('Не удалось распаковать архив ComfyUI: ' + (r.stderr || r.err.message).trim().slice(0, 300));
+      if (r.err) throw new Error(T('Не удалось распаковать архив ComfyUI: ', 'Could not unpack the ComfyUI archive: ') + (r.stderr || r.err.message).trim().slice(0, 300));
       const top = fs.readdirSync(tmp).map((n) => path.join(tmp, n)).find((p) => fs.existsSync(path.join(p, 'python_embeded')));
-      if (!top) throw new Error('В архиве ComfyUI нет python_embeded — архив не того формата.');
+      if (!top) throw new Error(T('В архиве ComfyUI нет python_embeded — архив не того формата.', 'The ComfyUI archive has no python_embeded — wrong archive format.'));
       fs.rmSync(dir, { recursive: true, force: true });
       fs.renameSync(top, dir);
       fs.rmSync(tmp, { recursive: true, force: true });
 
-      st.step = 'Дополнение ComfyUI-GGUF (модели в формате GGUF)';
+      st.step = T('Дополнение ComfyUI-GGUF (модели в формате GGUF)', 'ComfyUI-GGUF extension (GGUF models)');
       const zip = path.join(dlDir, 'ComfyUI-GGUF.zip');
-      await download(GGUF_NODE.url, zip, 0, GGUF_NODE.sha, 'Скачиваю ComfyUI-GGUF');
+      await download(GGUF_NODE.url, zip, 0, GGUF_NODE.sha, T('Скачиваю ComfyUI-GGUF', 'Downloading ComfyUI-GGUF'));
       const nodes = path.join(dir, 'ComfyUI', 'custom_nodes');
       const x = await run(tar, ['-xf', zip, '-C', nodes], { timeout: 120000 });
-      if (x.err) throw new Error('Не удалось распаковать ComfyUI-GGUF');
+      if (x.err) throw new Error(T('Не удалось распаковать ComfyUI-GGUF', 'Could not unpack ComfyUI-GGUF'));
       const unpacked = fs.readdirSync(nodes).find((n) => /^ComfyUI-GGUF-[0-9a-f]{40}$/.test(n));
       const target = path.join(nodes, 'ComfyUI-GGUF');
       fs.rmSync(target, { recursive: true, force: true });
       fs.renameSync(path.join(nodes, unpacked), target);
-      st.step = 'Библиотеки для ComfyUI-GGUF (pip)';
+      st.step = T('Библиотеки для ComfyUI-GGUF (pip)', 'Libraries for ComfyUI-GGUF (pip)');
       const pip = await run(py, ['-s', '-m', 'pip', 'install', '--no-warn-script-location', '-r', path.join(target, 'requirements.txt')], { timeout: 15 * 60000 });
-      if (pip.err) throw new Error('pip не установил зависимости ComfyUI-GGUF: ' + (pip.stderr || '').trim().split(/\r?\n/).slice(-3).join(' '));
+      if (pip.err) throw new Error(T('pip не установил зависимости ComfyUI-GGUF: ', 'pip did not install the ComfyUI-GGUF dependencies: ') + (pip.stderr || '').trim().split(/\r?\n/).slice(-3).join(' '));
 
       writeModelPaths();
       fs.writeFileSync(infoFile, JSON.stringify({ version: VERSION, variant: pick.key, cpu: !!pick.cpu, installedAt: new Date().toISOString() }, null, 2));
       try { fs.unlinkSync(archive); } catch {}
       st.status = 'off';
-      journal(`ComfyUI установлен (${v.label})`, 'ok');
+      journal(T(`ComfyUI установлен (${lbl(v)})`, `ComfyUI installed (${lbl(v)})`), 'ok');
     } catch (e) {
       st.status = 'error'; st.error = String(e.message || e);
       journal('ComfyUI: ' + st.error, 'error');
@@ -161,11 +163,17 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     for (const t of TEMPLATES[m.arch] || []) await writeOneWorkflow(m, t.url, t.suffix);
   }
   async function writeOneWorkflow(m, url, suffix) {
-    const name = `${m.title} ${m.quant}${suffix}.json`.replace(/[<>:"/\\|?*]/g, '_');
+    const sfx = Array.isArray(suffix) ? suffix : [suffix, suffix];
+    const nameOf = (s) => `${m.title} ${m.quant}${s}.json`.replace(/[<>:"/\\|?*]/g, '_');
+    const name = nameOf(T(...sfx));
     const out = path.join(dir, 'ComfyUI', 'user', 'default', 'workflows', name);
     if (fs.existsSync(out)) return;
+    for (const s of sfx) {
+      const twin = path.join(path.dirname(out), nameOf(s));
+      if (twin !== out && fs.existsSync(twin)) { fs.renameSync(twin, out); return; }
+    }
     const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
-    if (!res.ok) throw new Error('шаблон workflow недоступен (' + res.status + ')');
+    if (!res.ok) throw new Error(T('шаблон workflow недоступен (', 'workflow template unavailable (') + res.status + ')');
     const w = await res.json();
     const file = (role) => (m.files.find((f) => f.subdir === role) || {}).name;
     const unet = file('diffusion_models'), te = file('text_encoders'), vae = file('vae');
@@ -189,7 +197,7 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     }
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, JSON.stringify(w, null, 2));
-    journal(`ComfyUI: готовый workflow «${name}»`, 'ok');
+    journal(T(`ComfyUI: готовый workflow «${name}»`, `ComfyUI: workflow "${name}" ready`), 'ok');
   }
 
   // show: open the window when ready (false when the agent starts ComfyUI for image generation).
@@ -198,10 +206,10 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
   let quiet = false;
   let lastBusy = 0;
   async function start({ show = true } = {}) {
-    if (!installed()) throw new Error('ComfyUI не установлен');
+    if (!installed()) throw new Error(T('ComfyUI не установлен', 'ComfyUI is not installed'));
     if (st.status === 'starting') { showWhenReady = showWhenReady || show; return; }
     // Models installed while ComfyUI was already open get their workflow too (it lists files on refresh).
-    for (const m of imageModels()) { try { await writeWorkflow(m); } catch (e) { journal(`ComfyUI: workflow для «${m.title}» не создан: ${e.message}`, 'warn'); } }
+    for (const m of imageModels()) { try { await writeWorkflow(m); } catch (e) { journal(T(`ComfyUI: workflow для «${m.title}» не создан: ${e.message}`, `ComfyUI: workflow for "${m.title}" not created: ${e.message}`), 'warn'); } }
     if (st.status === 'on') { if (show) quiet = false; return show ? open() : undefined; }
     showWhenReady = show;
     writeModelPaths();
@@ -230,14 +238,14 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     // Appended, not overwritten: after a crash and restart the reason must still be in the log.
     const logFile = path.join(dataDir, 'comfyui.log');
     try { if (fs.statSync(logFile).size > 5 * 1048576) fs.renameSync(logFile, logFile + '.old'); } catch {}
-    fs.appendFileSync(logFile, `\n===== ${new Date().toISOString()} запуск ComfyUI (${show ? 'окно' : 'фоном, для агента'}) =====\n`);
+    fs.appendFileSync(logFile, `\n===== ${new Date().toISOString()} ComfyUI start (${show ? 'window' : 'background, for the agent'}) =====\n`);
     const outFd = fs.openSync(logFile, 'a');
     quiet = !show; lastBusy = Date.now();
     // detached: keeps running after the launcher closes, like the local model.
     proc = cp.spawn(py, args, { cwd: dir, windowsHide: true, detached: true, stdio: ['ignore', outFd, outFd] });
     fs.closeSync(outFd);
     Object.assign(st, { status: 'starting', pid: proc.pid, since: Date.now(), error: null });
-    journal('Запуск ComfyUI…');
+    journal(T('Запуск ComfyUI…', 'Starting ComfyUI…'));
     const me = proc;
     proc.on('exit', (code) => {
       if (proc !== me) return;
@@ -246,8 +254,8 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
       st.status = 'error';
       let t = '';
       try { t = fs.readFileSync(path.join(dataDir, 'comfyui.log'), 'utf8').split(/\r?\n/).filter(Boolean).slice(-8).join('\n'); } catch {}
-      st.error = `ComfyUI завершился (код ${code}).\n` + t;
-      journal('ComfyUI упал', 'error');
+      st.error = T(`ComfyUI завершился (код ${code}).\n`, `ComfyUI exited (code ${code}).\n`) + t;
+      journal(T('ComfyUI упал', 'ComfyUI crashed'), 'error');
     });
   }
 
@@ -259,7 +267,7 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     proc = null;
     if (pid) await killTree(pid);
     Object.assign(st, { status: 'off', pid: null });
-    journal('ComfyUI остановлен');
+    journal(T('ComfyUI остановлен', 'ComfyUI stopped'));
   }
 
   async function remove() {
@@ -269,8 +277,8 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     try {
       await new Promise((r) => setTimeout(r, 800));
       fs.rmSync(dir, { recursive: true, force: true });
-      journal('ComfyUI удалён (модели в models\\comfyui и картинки в data\\comfyui\\output остались)', 'ok');
-    } catch (e) { st.error = 'Не удалось удалить: ' + e.message; journal(st.error, 'error'); }
+      journal(T('ComfyUI удалён (модели в models\\comfyui и картинки в data\\comfyui\\output остались)', 'ComfyUI removed (models in models\\comfyui and images in data\\comfyui\\output were kept)'), 'ok');
+    } catch (e) { st.error = T('Не удалось удалить: ', 'Could not delete: ') + e.message; journal(st.error, 'error'); }
     finally { busy = false; st.status = 'off'; }
   }
 
@@ -279,7 +287,7 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     const r = await httpGet(`http://127.0.0.1:${PORT}/system_stats`, 1500);
     if (r.status === 200 && st.status === 'starting') {
       st.status = 'on';
-      journal(`ComfyUI готов за ${Math.round((Date.now() - st.since) / 1000)} с`, 'ok');
+      journal(T(`ComfyUI готов за ${Math.round((Date.now() - st.since) / 1000)} с`, `ComfyUI ready in ${Math.round((Date.now() - st.since) / 1000)} s`), 'ok');
       if (showWhenReady) open();
     }
   }
@@ -303,8 +311,8 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
   async function releaseForModel() {
     if (st.status !== 'on') return;
     const b = await queueBusy();
-    if (quiet && b === false) { await stop(); journal('ComfyUI остановлен, чтобы освободить видеопамять для локальной модели'); }
-    else journal('ComfyUI открыт и занимает видеопамять — локальная модель может загрузиться медленнее', 'warn');
+    if (quiet && b === false) { await stop(); journal(T('ComfyUI остановлен, чтобы освободить видеопамять для локальной модели', 'ComfyUI stopped to free VRAM for the local model')); }
+    else journal(T('ComfyUI открыт и занимает видеопамять — локальная модель может загрузиться медленнее', 'ComfyUI is open and uses VRAM — the local model may load slower'), 'warn');
   }
   let idleCheckAt = 0;
   async function idleCheck() {
@@ -312,7 +320,7 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     idleCheckAt = Date.now() + 60000;
     const b = await queueBusy();
     if (b) lastBusy = Date.now();
-    else if (b === false && Date.now() - lastBusy > 15 * 60000) { await stop(); journal('ComfyUI остановлен: 15 минут без работы (освобождена видеопамять)'); }
+    else if (b === false && Date.now() - lastBusy > 15 * 60000) { await stop(); journal(T('ComfyUI остановлен: 15 минут без работы (освобождена видеопамять)', 'ComfyUI stopped: idle for 15 minutes (VRAM freed)')); }
   }
 
   function tick() {
@@ -331,8 +339,8 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     const pick = pickVariant(getHw());
     return {
       ...st, installed: installed(), busy, port: PORT, version: info.version || null,
-      variant: info.variant ? VARIANTS[info.variant].label : null,
-      plan: { label: VARIANTS[pick.key].label, bytes: VARIANTS[pick.key].size, cpu: !!pick.cpu, version: VERSION },
+      variant: info.variant ? lbl(VARIANTS[info.variant]) : null,
+      plan: { label: lbl(VARIANTS[pick.key]), bytes: VARIANTS[pick.key].size, cpu: !!pick.cpu, version: VERSION },
     };
   }
 

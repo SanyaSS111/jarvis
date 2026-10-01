@@ -11,6 +11,7 @@ use crate::sys::{Sample, StaticInfo};
 use crate::text::{Canvas, Fonts};
 use theme::{with_alpha, Boot};
 use widgets::Ctx;
+use crate::lang::tr;
 
 const HISTORY: usize = 64;
 
@@ -65,19 +66,19 @@ impl ModuleId {
 
     pub fn title(self) -> &'static str {
         match self {
-            Self::DateRing => "КАЛЕНДАРЬ",
-            Self::Cluster => "ДАТЧИКИ",
-            Self::Load => "НАГРУЗКА",
-            Self::Network => "СЕТЬ",
-            Self::Gpu => "ВИДЕОКАРТА",
-            Self::Traffic => "ТРАФИК",
-            Self::Storage => "НАКОПИТЕЛЬ",
-            Self::Energy => "ЭНЕРГИЯ",
-            Self::Thermal => "ТЕМПЕРАТУРЫ",
-            Self::Chrono => "ХРОНОМЕТРИЯ",
-            Self::System => "УЗЕЛ",
-            Self::Display => "ДИСПЛЕЙ",
-            Self::Cores => "ЯДРА ПРОЦЕССОРА",
+            Self::DateRing => tr("КАЛЕНДАРЬ", "CALENDAR"),
+            Self::Cluster => tr("ДАТЧИКИ", "SENSORS"),
+            Self::Load => tr("НАГРУЗКА", "LOAD"),
+            Self::Network => tr("СЕТЬ", "NETWORK"),
+            Self::Gpu => tr("ВИДЕОКАРТА", "GPU"),
+            Self::Traffic => tr("ТРАФИК", "TRAFFIC"),
+            Self::Storage => tr("НАКОПИТЕЛЬ", "STORAGE"),
+            Self::Energy => tr("ЭНЕРГИЯ", "POWER"),
+            Self::Thermal => tr("ТЕМПЕРАТУРЫ", "TEMPERATURES"),
+            Self::Chrono => tr("ХРОНОМЕТРИЯ", "CHRONOMETRY"),
+            Self::System => tr("УЗЕЛ", "NODE"),
+            Self::Display => tr("ДИСПЛЕЙ", "DISPLAY"),
+            Self::Cores => tr("ЯДРА ПРОЦЕССОРА", "CPU CORES"),
         }
     }
 
@@ -184,9 +185,9 @@ pub struct Hud {
 
 fn format_speed(kbs: f32) -> String {
     if kbs >= 1024.0 {
-        format!("{:.1} МБ/с", kbs / 1024.0).replace('.', ",")
+        format!("{:.1} {}", kbs / 1024.0, tr("МБ/с", "MB/s")).replace('.', crate::lang::dec())
     } else {
-        format!("{:.0} КБ/с", kbs)
+        format!("{:.0} {}", kbs, tr("КБ/с", "KB/s"))
     }
 }
 
@@ -194,13 +195,25 @@ fn format_uptime(seconds: u64) -> String {
     let days = seconds / 86400;
     let rest = seconds % 86400;
     let text = format!("{:02}:{:02}:{:02}", rest / 3600, (rest % 3600) / 60, rest % 60);
-    if days > 0 { format!("{days} д {text}") } else { text }
+    if days > 0 { format!("{days} {} {text}", tr("д", "d")) } else { text }
 }
 
-const WEEKDAYS: [&str; 7] = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
-const MONTHS: [&str; 12] = [
+const WEEKDAYS_RU: [&str; 7] = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
+const WEEKDAYS_EN: [&str; 7] = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+const MONTHS_RU: [&str; 12] = [
     "ЯНВ", "ФЕВ", "МАР", "АПР", "МАЯ", "ИЮН", "ИЮЛ", "АВГ", "СЕН", "ОКТ", "НОЯ", "ДЕК",
 ];
+const MONTHS_EN: [&str; 12] = [
+    "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+];
+
+pub(crate) fn weekday(index: usize) -> &'static str {
+    tr(WEEKDAYS_RU[index], WEEKDAYS_EN[index])
+}
+
+pub(crate) fn month(index: usize) -> &'static str {
+    tr(MONTHS_RU[index], MONTHS_EN[index])
+}
 
 pub mod edit;
 
@@ -272,19 +285,19 @@ impl Hud {
             ModuleId::Load => {
                 let mut items = vec![
                     Element::Meter {
-                        label: "ЦП".into(),
+                        label: tr("ЦП", "CPU").into(),
                         value: format!("{:.0} %", sample.cpu),
                         fill: sample.cpu / 100.0,
                         color: level(sample.cpu),
                     },
                     Element::Meter {
-                        label: "ОЗУ".into(),
-                        value: format!("{:.1} ГБ", sample.ram_used_gb),
+                        label: tr("ОЗУ", "RAM").into(),
+                        value: format!("{:.1} {}", sample.ram_used_gb, tr("ГБ", "GB")),
                         fill: sample.ram_percent / 100.0,
                         color: level(sample.ram_percent),
                     },
                     Element::Meter {
-                        label: "ДИСК".into(),
+                        label: tr("ДИСК", "DISK").into(),
                         value: format!("{:.0} %", sample.disk_percent),
                         fill: sample.disk_percent / 100.0,
                         color: level(sample.disk_percent),
@@ -292,9 +305,9 @@ impl Hud {
                 ];
                 for process in sample.top_processes.iter().take(5) {
                     let memory = if process.mem_mb >= 1024 {
-                        format!("{:.1} ГБ", process.mem_mb as f32 / 1024.0).replace('.', ",")
+                        format!("{:.1} {}", process.mem_mb as f32 / 1024.0, tr("ГБ", "GB")).replace('.', crate::lang::dec())
                     } else {
-                        format!("{} МБ", process.mem_mb)
+                        format!("{} {}", process.mem_mb, tr("МБ", "MB"))
                     };
                     items.push(Element::Row {
                         label: process.name.clone(),
@@ -306,58 +319,58 @@ impl Hud {
             }
 
             ModuleId::Network => {
-                let online = sample.net_kind != "Нет соединения";
+                let online = sample.net_kind != tr("Нет соединения", "No connection");
                 let mut name = sample.net_name.clone();
                 if let Some(cut) = name.find("-WFP") {
                     name.truncate(cut);
                 }
                 vec![
                     Element::Row {
-                        label: "СТАТУС".into(),
-                        value: if online { "Подключено".into() } else { "Нет связи".into() },
+                        label: tr("СТАТУС", "STATUS").into(),
+                        value: if online { tr("Подключено", "Connected").into() } else { tr("Нет связи", "Offline").into() },
                         color: if online { theme::OK } else { theme::RED },
                     },
-                    Element::Row { label: "ТИП".into(), value: sample.net_kind.clone(), color: theme::TEXT },
+                    Element::Row { label: tr("ТИП", "TYPE").into(), value: sample.net_kind.clone(), color: theme::TEXT },
                     Element::Row {
-                        label: "ЛИНК".into(),
+                        label: tr("ЛИНК", "LINK").into(),
                         value: if sample.net_link_mbps > 0 {
-                            format!("{} Мбит/с", sample.net_link_mbps)
+                            format!("{} {}", sample.net_link_mbps, tr("Мбит/с", "Mbit/s"))
                         } else {
                             "—".into()
                         },
                         color: theme::TEXT,
                     },
-                    Element::Row { label: "ЗАГРУЗКА".into(), value: format_speed(sample.net_down_kbs), color: theme::TEXT },
-                    Element::Row { label: "ОТДАЧА".into(), value: format_speed(sample.net_up_kbs), color: theme::TEXT },
+                    Element::Row { label: tr("ЗАГРУЗКА", "DOWN").into(), value: format_speed(sample.net_down_kbs), color: theme::TEXT },
+                    Element::Row { label: tr("ОТДАЧА", "UP").into(), value: format_speed(sample.net_up_kbs), color: theme::TEXT },
                     Element::Row {
-                        label: "ТУННЕЛЬ".into(),
-                        value: sample.net_tunnel.clone().unwrap_or_else(|| "нет".into()),
+                        label: tr("ТУННЕЛЬ", "TUNNEL").into(),
+                        value: sample.net_tunnel.clone().unwrap_or_else(|| tr("нет", "none").into()),
                         color: theme::STEEL,
                     },
-                    Element::Row { label: "АДАПТЕР".into(), value: name, color: theme::STEEL },
+                    Element::Row { label: tr("АДАПТЕР", "ADAPTER").into(), value: name, color: theme::STEEL },
                 ]
             }
 
             ModuleId::Gpu => vec![
                 Element::Row {
-                    label: "МОДЕЛЬ".into(),
+                    label: tr("МОДЕЛЬ", "MODEL").into(),
                     value: info.gpu_name.clone().unwrap_or_else(|| "—".into()),
                     color: theme::TEXT,
                 },
                 Element::Row {
-                    label: "ЗАГРУЗКА".into(),
+                    label: tr("ЗАГРУЗКА", "LOAD").into(),
                     value: format!("{:.0} %", sample.gpu_load),
                     color: level(sample.gpu_load),
                 },
                 Element::Row {
-                    label: "ВИДЕОПАМЯТЬ".into(),
-                    value: format!("{:.1} / {:.0} ГБ", sample.gpu_vram_used_gb, info.gpu_vram_total_gb),
+                    label: tr("ВИДЕОПАМЯТЬ", "VRAM").into(),
+                    value: format!("{:.1} / {:.0} {}", sample.gpu_vram_used_gb, info.gpu_vram_total_gb, tr("ГБ", "GB")),
                     color: theme::TEXT,
                 },
-                Element::Row { label: "ВЕНТИЛЯТОР".into(), value: format!("{} %", sample.gpu_fan), color: theme::TEXT },
+                Element::Row { label: tr("ВЕНТИЛЯТОР", "FAN").into(), value: format!("{} %", sample.gpu_fan), color: theme::TEXT },
                 Element::Row {
-                    label: "ЧАСТОТЫ".into(),
-                    value: format!("{}/{} МГц", sample.gpu_clock_core, sample.gpu_clock_mem),
+                    label: tr("ЧАСТОТЫ", "CLOCKS").into(),
+                    value: format!("{}/{} {}", sample.gpu_clock_core, sample.gpu_clock_mem, tr("МГц", "MHz")),
                     color: theme::TEXT,
                 },
                 Element::Spark { values: self.history.gpu.clone(), max: Some(100.0) },
@@ -365,17 +378,17 @@ impl Hud {
 
             ModuleId::Thermal => vec![
                 Element::Row {
-                    label: "ВИДЕОКАРТА".into(),
+                    label: tr("ВИДЕОКАРТА", "GPU").into(),
                     value: format!("{} °C", sample.gpu_temp),
                     color: theme::temp_color(sample.gpu_temp as f32),
                 },
-                Element::Row { label: "ПРОЦЕССОР".into(), value: "недоступно".into(), color: theme::STEEL },
+                Element::Row { label: tr("ПРОЦЕССОР", "CPU").into(), value: tr("недоступно", "unavailable").into(), color: theme::STEEL },
             ],
 
             ModuleId::Energy => vec![
                 Element::Meter {
-                    label: "ВИДЕОКАРТА".into(),
-                    value: format!("{:.1} Вт", sample.gpu_power_w).replace('.', ","),
+                    label: tr("ВИДЕОКАРТА", "GPU").into(),
+                    value: format!("{:.1} {}", sample.gpu_power_w, tr("Вт", "W")).replace('.', crate::lang::dec()),
                     fill: if info.gpu_power_limit_w > 0.0 {
                         sample.gpu_power_w / info.gpu_power_limit_w
                     } else {
@@ -384,26 +397,26 @@ impl Hud {
                     color: accent,
                 },
                 Element::Row {
-                    label: "ПРЕДЕЛ".into(),
-                    value: format!("{:.0} Вт", info.gpu_power_limit_w),
+                    label: tr("ПРЕДЕЛ", "LIMIT").into(),
+                    value: format!("{:.0} {}", info.gpu_power_limit_w, tr("Вт", "W")),
                     color: theme::TEXT,
                 },
-                Element::Row { label: "ПРОЦЕССОР".into(), value: "недоступно".into(), color: theme::STEEL },
+                Element::Row { label: tr("ПРОЦЕССОР", "CPU").into(), value: tr("недоступно", "unavailable").into(), color: theme::STEEL },
             ],
 
             ModuleId::Chrono => {
                 let now = crate::clock::now();
                 vec![
                     Element::Row {
-                        label: "ДАТА".into(),
-                        value: format!("{} {} {} {}", WEEKDAYS[now.weekday], now.day, MONTHS[now.month], now.year),
+                        label: tr("ДАТА", "DATE").into(),
+                        value: format!("{} {} {} {}", weekday(now.weekday), now.day, month(now.month), now.year),
                         color: theme::TEXT,
                     },
-                    Element::Row { label: "АПТАЙМ".into(), value: format_uptime(sample.uptime_secs), color: theme::TEXT },
+                    Element::Row { label: tr("АПТАЙМ", "UPTIME").into(), value: format_uptime(sample.uptime_secs), color: theme::TEXT },
                     Element::Row {
-                        label: "ЧАСТОТА ЦП".into(),
+                        label: tr("ЧАСТОТА ЦП", "CPU CLOCK").into(),
                         value: if sample.cpu_freq_mhz > 0 {
-                            format!("{:.2} ГГц", sample.cpu_freq_mhz as f32 / 1000.0).replace('.', ",")
+                            format!("{:.2} {}", sample.cpu_freq_mhz as f32 / 1000.0, tr("ГГц", "GHz")).replace('.', crate::lang::dec())
                         } else {
                             "—".into()
                         },
@@ -413,21 +426,21 @@ impl Hud {
             }
 
             ModuleId::System => vec![
-                Element::Row { label: "ИМЯ".into(), value: info.hostname.clone(), color: theme::TEXT },
-                Element::Row { label: "СИСТЕМА".into(), value: info.os.clone(), color: theme::TEXT },
-                Element::Row { label: "ПОТОКИ ЦП".into(), value: format!("{}", info.threads), color: theme::TEXT },
+                Element::Row { label: tr("ИМЯ", "NAME").into(), value: info.hostname.clone(), color: theme::TEXT },
+                Element::Row { label: tr("СИСТЕМА", "SYSTEM").into(), value: info.os.clone(), color: theme::TEXT },
+                Element::Row { label: tr("ПОТОКИ ЦП", "CPU THREADS").into(), value: format!("{}", info.threads), color: theme::TEXT },
                 Element::Spark { values: self.history.cpu.clone(), max: Some(100.0) },
             ],
 
             ModuleId::Display => vec![
                 Element::Row {
-                    label: "РАЗРЕШЕНИЕ".into(),
+                    label: tr("РАЗРЕШЕНИЕ", "RESOLUTION").into(),
                     value: format!("{}×{}", monitor.width, monitor.height),
                     color: theme::TEXT,
                 },
-                Element::Row { label: "ЧАСТОТА".into(), value: format!("{} Гц", monitor.hz), color: theme::TEXT },
+                Element::Row { label: tr("ЧАСТОТА", "REFRESH").into(), value: format!("{} {}", monitor.hz, tr("Гц", "Hz")), color: theme::TEXT },
                 Element::Row {
-                    label: "МАСШТАБ".into(),
+                    label: tr("МАСШТАБ", "SCALE").into(),
                     value: format!("{:.0} %", monitor.scale * 100.0),
                     color: theme::TEXT,
                 },
@@ -437,55 +450,55 @@ impl Hud {
                 Element::Column {
                     fill: sample.disk_percent / 100.0,
                     facts: vec![
-                        ("ЗАНЯТО".into(), format!("{:.0} ГБ", info.disk_total_gb - sample.disk_free_gb)),
-                        ("СВОБОДНО".into(), format!("{:.0} ГБ", sample.disk_free_gb)),
-                        ("ОБЪЁМ".into(), format!("{:.0} ГБ", info.disk_total_gb)),
+                        (tr("ЗАНЯТО", "USED").into(), format!("{:.0} {}", info.disk_total_gb - sample.disk_free_gb, tr("ГБ", "GB"))),
+                        (tr("СВОБОДНО", "FREE").into(), format!("{:.0} {}", sample.disk_free_gb, tr("ГБ", "GB"))),
+                        (tr("ОБЪЁМ", "TOTAL").into(), format!("{:.0} {}", info.disk_total_gb, tr("ГБ", "GB"))),
                     ],
                 },
                 Element::Row {
-                    label: "ЧТ/ЗП".into(),
+                    label: tr("ЧТ/ЗП", "R/W").into(),
                     value: format!("{} / {}", format_speed(sample.disk_read_kbs), format_speed(sample.disk_write_kbs)),
                     color: theme::TEXT,
                 },
             ],
 
             ModuleId::Traffic => vec![
-                Element::Row { label: "ЗАГРУЗКА".into(), value: format_speed(sample.net_down_kbs), color: accent },
+                Element::Row { label: tr("ЗАГРУЗКА", "DOWN").into(), value: format_speed(sample.net_down_kbs), color: accent },
                 Element::Spark { values: self.history.down.clone(), max: None },
-                Element::Row { label: "ОТДАЧА".into(), value: format_speed(sample.net_up_kbs), color: accent },
+                Element::Row { label: tr("ОТДАЧА", "UP").into(), value: format_speed(sample.net_up_kbs), color: accent },
                 Element::Spark { values: self.history.up.clone(), max: None },
             ],
 
             ModuleId::Cluster => {
                 let mut items = vec![Dial {
                     value: format!("{:.0}", sample.cpu),
-                    caption: "ЦП".into(),
+                    caption: tr("ЦП", "CPU").into(),
                     fill: sample.cpu / 100.0,
                     color: level(sample.cpu),
                 }];
                 if info.gpu_name.is_some() {
                     items.push(Dial {
                         value: format!("{:.0}", sample.gpu_load),
-                        caption: "ГП".into(),
+                        caption: tr("ГП", "GPU").into(),
                         fill: sample.gpu_load / 100.0,
                         color: level(sample.gpu_load),
                     });
                 }
                 items.push(Dial {
                     value: format!("{:.0}", sample.ram_percent),
-                    caption: "ОЗУ".into(),
+                    caption: tr("ОЗУ", "RAM").into(),
                     fill: sample.ram_percent / 100.0,
                     color: level(sample.ram_percent),
                 });
                 items.push(Dial {
                     value: format!("{:.0}", sample.disk_percent),
-                    caption: "ДИСК".into(),
+                    caption: tr("ДИСК", "DISK").into(),
                     fill: sample.disk_percent / 100.0,
                     color: level(sample.disk_percent),
                 });
                 items.push(Dial {
                     value: format!("{:.0}", sample.net_down_kbs.min(9999.0)),
-                    caption: "КБ/С".into(),
+                    caption: tr("КБ/С", "KB/S").into(),
                     fill: (sample.net_down_kbs / 12000.0).min(1.0),
                     color: accent,
                 });

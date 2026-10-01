@@ -8,6 +8,7 @@ mod clock;
 mod config;
 mod gl_window;
 mod hud;
+mod lang;
 mod monitors;
 mod overlay;
 mod registry;

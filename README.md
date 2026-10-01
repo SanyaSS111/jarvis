@@ -36,6 +36,7 @@ Built on **[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)**
 - 📱 **Talk to it from your phone.** Pair your Telegram in 10 seconds; risky actions wait for your ✅.
 - 🛡️ **Safe by default.** The agent can't touch your keys and passwords, deletions need your approval, and your API keys never leave your PC.
 - ⚡ **One installer, zero setup.** Node.js, Python, the agent and the engines are bundled inside — nothing to install system‑wide, no admin rights.
+- 🌐 **English or Russian.** Pick the language in the installer; switch it any time in the launcher (EN / RU) — the launcher, agent, voice, Telegram bot and HUD all follow.
 
 ## Features
 
@@ -200,6 +201,7 @@ and [Discussions](../../discussions); pull requests are welcome — [CONTRIBUTIN
 - 📱 **Пишите ему с телефона.** Telegram привязывается за 10 секунд, рискованные действия ждут вашего ✅.
 - 🛡️ **Безопасно по умолчанию.** Агент не трогает ключи и пароли, удаление — только с вашего разрешения, ваши ключи никуда не уходят с ПК.
 - ⚡ **Один установщик — никакой настройки.** Node.js, Python, агент и движки уже внутри: ничего не ставится в систему, права администратора не нужны.
+- 🌐 **Английский или русский.** Язык выбирается в установщике и меняется в лаунчере в любой момент (EN / RU) — лаунчер, агент, голос, Telegram-бот и обои переключаются вместе.
 
 ## Возможности
 

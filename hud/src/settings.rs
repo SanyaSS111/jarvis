@@ -13,6 +13,7 @@ use crate::hud::widgets::Ctx;
 use crate::hud::{Hud, MODULES};
 use crate::monitors::{self, Monitor};
 use crate::win32::*;
+use crate::lang::tr;
 
 const WIDTH: u32 = 820;
 const HEIGHT: u32 = 720;
@@ -267,7 +268,7 @@ impl Settings {
 
         let window = GlWindow::create(WindowSpec {
             class: "JarvisHudSettings",
-            title: "Настройка J.A.R.V.I.S. HUD",
+            title: tr("Настройка J.A.R.V.I.S. HUD", "J.A.R.V.I.S. HUD settings"),
             proc: settings_proc,
             style: WS_POPUP | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
             ex_style: WS_EX_APPWINDOW,
@@ -358,11 +359,11 @@ impl Settings {
             let title = TITLE_HEIGHT as f32;
             ui.rect(0.0, 0.0, width, title, with_alpha(accent, 0.05));
             ui.line((0.0, title), (width, title), with_alpha(accent, 0.18), 1.0);
-            ui.text(24.0, title / 2.0, "НАСТРОЙКА J.A.R.V.I.S. HUD", 14.0, accent, true, Align::Left, 3.0);
+            ui.text(24.0, title / 2.0, tr("НАСТРОЙКА J.A.R.V.I.S. HUD", "J.A.R.V.I.S. HUD SETTINGS"), 14.0, accent, true, Align::Left, 3.0);
             ui.text(
                 width - 64.0,
                 title / 2.0,
-                "изменения применяются сразу",
+                tr("изменения применяются сразу", "changes apply instantly"),
                 11.0,
                 with_alpha(theme::STEEL, 0.9),
                 false,
@@ -386,7 +387,7 @@ impl Settings {
             let column = 360.0;
 
             // --- левая колонка: модули и оформление ---
-            ui.section(left, 76.0, column, "МОДУЛИ");
+            ui.section(left, 76.0, column, tr("МОДУЛИ", "MODULES"));
             let mut y = 92.0;
             for id in MODULES {
                 let key = id.key();
@@ -397,13 +398,13 @@ impl Settings {
                 y += 27.0;
             }
 
-            ui.section(left, 470.0, column, "ОФОРМЛЕНИЕ");
+            ui.section(left, 470.0, column, tr("ОФОРМЛЕНИЕ", "LOOK"));
             let flags: [(&str, fn(&mut Config) -> &mut bool); 5] = [
-                ("Реактор с часами", flag_reactor),
-                ("Рамка и линейка", flag_frame),
-                ("Сетка фона", flag_grid),
-                ("Частицы", flag_motes),
-                ("Анимация запуска", flag_boot),
+                (tr("Реактор с часами", "Reactor with clock"), flag_reactor),
+                (tr("Рамка и линейка", "Frame and ruler"), flag_frame),
+                (tr("Сетка фона", "Background grid"), flag_grid),
+                (tr("Частицы", "Particles"), flag_motes),
+                (tr("Анимация запуска", "Boot animation"), flag_boot),
             ];
             let mut y = 486.0;
             for (label, field) in flags {
@@ -417,7 +418,7 @@ impl Settings {
             }
 
             // --- правая колонка ---
-            ui.section(right, 76.0, column, "ЦВЕТ АКЦЕНТА");
+            ui.section(right, 76.0, column, tr("ЦВЕТ АКЦЕНТА", "ACCENT COLOR"));
             for (index, preset) in ACCENTS.iter().enumerate() {
                 let cx = right + 14.0 + index as f32 * 48.0;
                 let color = Color::rgbf(preset[0], preset[1], preset[2]);
@@ -427,33 +428,35 @@ impl Settings {
                 }
             }
 
-            ui.section(right, 150.0, column, "ЛИМИТ КАДРОВ");
+            ui.section(right, 150.0, column, tr("ЛИМИТ КАДРОВ", "FRAME LIMIT"));
             let rates = [15u32, 30, 60, 120, 0];
             let selected = rates.iter().position(|v| *v == hud.config.fps_cap).unwrap_or(1);
-            if let Some(index) = ui.segmented(right, 166.0, column, 32.0, &["15", "30", "60", "120", "МАКС"], selected) {
+            if let Some(index) = ui.segmented(right, 166.0, column, 32.0, &["15", "30", "60", "120", tr("МАКС", "MAX")], selected) {
                 hud.config.fps_cap = rates[index];
                 hud.config.save();
             }
 
-            ui.section(right, 222.0, column, "ОТСТУП ПОД ЗНАЧКИ");
+            ui.section(right, 222.0, column, tr("ОТСТУП ПОД ЗНАЧКИ", "SPACE FOR ICONS"));
             let margins = [0.0f32, 160.0, 300.0, 440.0];
             let selected = margins.iter().position(|v| (v - hud.config.icon_margin).abs() < 1.0).unwrap_or(2);
-            if let Some(index) = ui.segmented(right, 238.0, column, 32.0, &["НЕТ", "160 PX", "300 PX", "440 PX"], selected) {
+            if let Some(index) = ui.segmented(right, 238.0, column, 32.0, &[tr("НЕТ", "NONE"), "160 PX", "300 PX", "440 PX"], selected) {
                 hud.config.icon_margin = margins[index];
                 hud.config.save();
             }
 
-            ui.section(right, 294.0, column, "МОНИТОРЫ");
+            ui.section(right, 294.0, column, tr("МОНИТОРЫ", "MONITORS"));
             let mut y = 310.0;
             for monitor in monitor_list {
                 let enabled = !hud.config.disabled_monitors.iter().any(|key| key == &monitor.key);
                 let label = format!(
-                    "Монитор {} · {}×{} · {} Гц{}",
+                    "{} {} · {}×{} · {} {}{}",
+                    tr("Монитор", "Monitor"),
                     monitor.index,
                     monitor.width,
                     monitor.height,
                     monitor.hz,
-                    if monitor.primary { " · основной" } else { "" }
+                    tr("Гц", "Hz"),
+                    if monitor.primary { tr(" · основной", " · primary") } else { "" }
                 );
                 if ui.checkbox(right, y, column, &label, enabled) {
                     if enabled {
@@ -467,26 +470,26 @@ impl Settings {
             }
 
             let system_y = y + 16.0;
-            ui.section(right, system_y, column, "СИСТЕМА");
-            if ui.checkbox(right, system_y + 16.0, column, "Запускать вместе с Windows", autostart_on) {
+            ui.section(right, system_y, column, tr("СИСТЕМА", "SYSTEM"));
+            if ui.checkbox(right, system_y + 16.0, column, tr("Запускать вместе с Windows", "Start with Windows"), autostart_on) {
                 let _ = autostart::set_enabled(!autostart_on);
                 autostart_on = autostart::is_enabled();
             }
 
             let buttons_y = height - 132.0;
-            if ui.button(right, buttons_y, column, 36.0, "ПРОИГРАТЬ АНИМАЦИЮ ЗАПУСКА", false) {
+            if ui.button(right, buttons_y, column, 36.0, tr("ПРОИГРАТЬ АНИМАЦИЮ ЗАПУСКА", "PLAY BOOT ANIMATION"), false) {
                 hud.boot = Boot::new();
             }
-            if ui.button(right, buttons_y + 48.0, 140.0, 36.0, "СБРОСИТЬ", false) {
+            if ui.button(right, buttons_y + 48.0, 140.0, 36.0, tr("СБРОСИТЬ", "RESET"), false) {
                 hud.config = Config::default();
                 hud.config.save();
             }
-            if ui.button(right + 152.0, buttons_y + 48.0, 208.0, 36.0, "ВЫЙТИ ИЗ ПРОГРАММЫ", true) {
+            if ui.button(right + 152.0, buttons_y + 48.0, 208.0, 36.0, tr("ВЫЙТИ ИЗ ПРОГРАММЫ", "QUIT"), true) {
                 outcome = Outcome::Quit;
             }
 
             // Расстановка идёт прямо на обоях, поэтому окно настроек прячем.
-            if ui.button(left, height - 92.0, column, 36.0, "РАССТАВИТЬ МОДУЛИ МЫШЬЮ", false) {
+            if ui.button(left, height - 92.0, column, 36.0, tr("РАССТАВИТЬ МОДУЛИ МЫШЬЮ", "ARRANGE MODULES WITH MOUSE"), false) {
                 outcome = Outcome::EditLayout;
                 close = true;
             }
@@ -494,7 +497,7 @@ impl Settings {
             ui.text(
                 left,
                 height - 26.0,
-                "Щелчок по значку в трее открывает это окно · Esc закрывает",
+                tr("Щелчок по значку в трее открывает это окно · Esc закрывает", "Clicking the tray icon opens this window · Esc closes it"),
                 11.0,
                 with_alpha(theme::STEEL, 0.8),
                 false,

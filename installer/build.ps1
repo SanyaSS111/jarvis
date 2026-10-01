@@ -81,12 +81,13 @@ Add hud 'hud\JarvisHUD2.exe'
 Add hud 'hud\jarvis2.ico'
 
 # ------------------------------------------------------------------ generated / sanitized files
-# Fresh agent settings: no personal defaults, onboarding state or keys.
+# Fresh agent settings: no personal defaults, onboarding state or keys. English by default; the launcher
+# switches locale, the Russian UI plugin and the reply language to the one chosen in the installer.
 Write-Staged agent "$home2\settings.yaml" @"
 locale:
-  preference: ru
+  preference: en
 russian-lang:
-  enabled: true
+  enabled: false
 subagent-model-selection:
   enabled: true
   allowedModels:

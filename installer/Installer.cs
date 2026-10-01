@@ -28,9 +28,11 @@ namespace Jarvis
     public class Component
     {
         public string Id, Title, Desc, Size;
+        public string TitleRu, TitleEn, DescRu, DescEn;
         public bool Default, Required;
         public string[] Needs = new string[0];
         public CheckBox Box;
+        public TextBlock TitleBlock, DescBlock, SizeBlock;
     }
 
     // Offline bundle appended to the exe by build.ps1 (outside the PE image, so it is never mapped into
@@ -112,7 +114,7 @@ namespace Jarvis
             using (var s = Open(name))
             using (var h = SHA256.Create())
                 if (BitConverter.ToString(h.ComputeHash(s)).Replace("-", "").ToLowerInvariant() != blobs[name].Sha)
-                    throw new Exception("встроенный архив «" + name + "» повреждён — скачайте установщик заново");
+                    throw new Exception(Installer.L("встроенный архив «" + name + "» повреждён — скачайте установщик заново", "the built-in archive \"" + name + "\" is damaged — download the installer again"));
         }
 
         // Read-only window [offset, offset+length) of a file.
@@ -192,7 +194,12 @@ namespace Jarvis
         public Window Window;
         readonly bool uninstall;
         string root;
-        string gpuVendor = "none", gpuName = "не найдена";
+        string gpuVendor = "none", gpuName = null;
+
+        // Interface language: English by default, Russian on request (the EN / RU buttons, /lang:ru).
+        // The choice goes to data\launcher\settings.json — the launcher, agent, Telegram bot and HUD follow it.
+        static bool ru;
+        public static string L(string r, string e) { return ru ? r : e; }
         readonly List<Component> comps = new List<Component>();
         readonly StringBuilder logText = new StringBuilder();
         StreamWriter logFile;
@@ -213,10 +220,60 @@ namespace Jarvis
             F<Button>("CloseBtn").Click += (s, e) => { if (!busy) Window.Close(); };
             Window.Closing += (s, e) => { if (busy) e.Cancel = true; };
             StartReactor(1.0);
-            int h = DateTime.Now.Hour;
-            F<TextBlock>("Greeting").Text = (h < 5 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер") + ".";
+            ru = args.Any(a => a.Equals("/lang:ru", StringComparison.OrdinalIgnoreCase));
+            F<Button>("LangEn").Click += (s, e) => SetLang(false);
+            F<Button>("LangRu").Click += (s, e) => SetLang(true);
             DetectHardware();
             if (uninstall) SetupUninstall(); else SetupInstall();
+        }
+
+        void SetLang(bool russian)
+        {
+            if (busy) return;
+            ru = russian;
+            ApplyLang();
+        }
+
+        // Every static text of the window in the current language.
+        void ApplyLang()
+        {
+            Window.Title = uninstall ? L("J.A.R.V.I.S. — удаление", "J.A.R.V.I.S. — uninstall") : L("J.A.R.V.I.S. — установка", "J.A.R.V.I.S. Setup");
+            F<Button>("LangEn").Opacity = ru ? 0.45 : 1;
+            F<Button>("LangRu").Opacity = ru ? 1 : 0.45;
+            RenderHardware();
+            if (uninstall) { ApplyUninstallTexts(); return; }
+            int h = DateTime.Now.Hour;
+            F<TextBlock>("Greeting").Text = (h < 5 ? L("Доброй ночи", "Good night") : h < 12 ? L("Доброе утро", "Good morning") : h < 18 ? L("Добрый день", "Good afternoon") : L("Добрый вечер", "Good evening")) + ".";
+            F<TextBlock>("Subtitle").Text = L("УСТАНОВКА", "SETUP") + " · JUST A RATHER VERY INTELLIGENT SYSTEM";
+            F<TextBlock>("Intro").Text = L("Этот мастер установит J.A.R.V.I.S. — ИИ-агента с голосом Джарвиса, локальные модели, обои HUD и оформление Windows. Вы сами выберете, что ставить. Всё скачивается с официальных источников и проверяется по контрольным суммам.",
+                "This wizard installs J.A.R.V.I.S. — an AI agent with the Jarvis voice, local models, the HUD wallpaper and a Windows look. You choose what to install. Everything comes from official sources and is verified by checksums.");
+            F<TextBlock>("ScanTitle").Text = L("СКАНИРОВАНИЕ СИСТЕМЫ", "SYSTEM SCAN");
+            F<Button>("WelcomeNext").Content = L("ДАЛЕЕ  →", "NEXT  →");
+            F<TextBlock>("CompTitle").Text = L("ЧТО УСТАНОВИТЬ", "WHAT TO INSTALL");
+            F<Button>("CompBack").Content = L("←  НАЗАД", "←  BACK");
+            F<Button>("CompNext").Content = L("ДАЛЕЕ  →", "NEXT  →");
+            F<TextBlock>("FolderTitle").Text = L("ПАПКА УСТАНОВКИ", "INSTALL FOLDER");
+            F<Button>("FolderBack").Content = L("←  НАЗАД", "←  BACK");
+            F<Button>("InstallBtn").Content = L("УСТАНОВИТЬ", "INSTALL");
+            F<Button>("BrowseBtn").Content = L("ОБЗОР", "BROWSE");
+            F<TextBlock>("ShortcutText").Text = L("Ярлык J.A.R.V.I.S. на рабочем столе", "J.A.R.V.I.S. shortcut on the desktop");
+            F<TextBlock>("KeyNote").Text = L("Ключ DeepSeek не входит в установку — после первого запуска агент попросит ваш собственный ключ (platform.deepseek.com). Локальные модели работают и без него.",
+                "A DeepSeek key is not included — on first start the agent asks for your own key (platform.deepseek.com). Local models work without it.");
+            F<TextBlock>("StepText").Text = L("Подготовка…", "Preparing…");
+            F<Button>("DoneBtn").Content = L("ГОТОВО", "DONE");
+            F<TextBlock>("DoneTitle").Text = L("Все системы в норме, сэр.", "All systems nominal, sir.");
+            F<TextBlock>("LaunchText").Text = L("Запустить J.A.R.V.I.S.", "Launch J.A.R.V.I.S.");
+            foreach (var c in comps)
+            {
+                c.Title = L(c.TitleRu, c.TitleEn);
+                c.Desc = L(c.DescRu, c.DescEn);
+                if (c.TitleBlock == null) continue;
+                c.TitleBlock.Text = c.Title + (c.Required ? L("  · обязательно", "  · required") : "");
+                c.DescBlock.Text = c.Desc;
+                c.SizeBlock.Text = ru ? c.Size : c.Size.Replace("МБ", "MB").Replace("процессор", "CPU");
+            }
+            if (comps.Count > 0) UpdateSize();
+            UpdateFolderInfo();
         }
 
         // ------------------------------------------------------------------ UI helpers
@@ -271,6 +328,10 @@ namespace Jarvis
         }
 
         // ------------------------------------------------------------------ hardware
+        long ramMb;
+        string winBuild = "";
+        int winBuildNo;
+
         void DetectHardware()
         {
             try
@@ -291,56 +352,62 @@ namespace Jarvis
                 }
             }
             catch { }
-            long ramMb = 0;
+            ramMb = 0;
             try
             {
                 using (var q = new ManagementObjectSearcher("SELECT TotalPhysicalMemory FROM Win32_ComputerSystem"))
                     foreach (ManagementObject o in q.Get()) ramMb = (long)(Convert.ToUInt64(o["TotalPhysicalMemory"]) / 1048576);
             }
             catch { }
-            string build = "";
-            try { build = (Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CurrentBuild", "") ?? "").ToString(); } catch { }
-            int b; int.TryParse(build, out b);
-            F<TextBlock>("HwGpu").Text = "Видеокарта: " + gpuName;
-            F<TextBlock>("HwRam").Text = "Оперативная память: " + (ramMb / 1024) + " ГБ";
-            F<TextBlock>("HwOs").Text = "Система: " + (b >= 22000 ? "Windows 11" : "Windows 10") + " (сборка " + build + ")";
-            string engine = gpuVendor == "nvidia" ? "CUDA — модели считаются на видеокарте NVIDIA"
-                : gpuVendor == "amd" || gpuVendor == "intel" ? "Vulkan — модели считаются на видеокарте"
-                : "без дискретной видеокарты — модели будут работать на процессоре (подойдут лёгкие)";
-            F<TextBlock>("HwNote").Text = "Движок локальных моделей: " + engine + "." + (b < 22000 ? "\nОформление Windows (панель задач, Пуск) рассчитано на Windows 11." : "");
+            try { winBuild = (Registry.GetValue(@"HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion", "CurrentBuild", "") ?? "").ToString(); } catch { }
+            int.TryParse(winBuild, out winBuildNo);
+        }
+
+        void RenderHardware()
+        {
+            int b = winBuildNo;
+            F<TextBlock>("HwGpu").Text = L("Видеокарта: ", "GPU: ") + (gpuName ?? L("не найдена", "not found"));
+            F<TextBlock>("HwRam").Text = L("Оперативная память: ", "RAM: ") + (ramMb / 1024) + L(" ГБ", " GB");
+            F<TextBlock>("HwOs").Text = L("Система: ", "System: ") + (b >= 22000 ? "Windows 11" : "Windows 10") + L(" (сборка ", " (build ") + winBuild + ")";
+            string engine = gpuVendor == "nvidia" ? L("CUDA — модели считаются на видеокарте NVIDIA", "CUDA — models run on the NVIDIA GPU")
+                : gpuVendor == "amd" || gpuVendor == "intel" ? L("Vulkan — модели считаются на видеокарте", "Vulkan — models run on the GPU")
+                : L("без дискретной видеокарты — модели будут работать на процессоре (подойдут лёгкие)", "no discrete GPU — models will run on the CPU (pick light ones)");
+            F<TextBlock>("HwNote").Text = L("Движок локальных моделей: ", "Local model engine: ") + engine + "." + (b < 22000 ? L("\nОформление Windows (панель задач, Пуск) рассчитано на Windows 11.", "\nThe Windows look (taskbar, Start) is made for Windows 11.") : "");
         }
 
         // ------------------------------------------------------------------ install flow
         void SetupInstall()
         {
             string llamaSize = gpuVendor == "nvidia" ? "≈ 620 МБ (CUDA)" : gpuVendor == "none" || gpuVendor == "other" ? "≈ 20 МБ (процессор)" : "≈ 30 МБ (Vulkan)";
-            comps.Add(new Component { Id = "core", Title = "Лаунчер J.A.R.V.I.S.", Desc = "Панель управления в стиле Джарвиса, телеметрия, портативный Node.js.", Size = "≈ 40 МБ", Default = true, Required = true });
-            comps.Add(new Component { Id = "agent", Title = "ИИ-агент DeepSeek Harness", Desc = "Агент с русским интерфейсом, темой Джарвиса, пресетами и скиллами. Нужен свой ключ DeepSeek.", Size = "≈ 600 МБ", Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "voice", Title = "Голос Джарвиса", Desc = "Голосовой режим агента: реактор, распознавание речи, озвучка ответов.", Size = "≈ 150 МБ", Default = true, Needs = new[] { "agent" } });
-            comps.Add(new Component { Id = "mcp", Title = "Управление ПК и программами", Desc = "MCP-инструменты агента: окна Windows, браузер, Blender.", Size = "≈ 300 МБ", Default = true, Needs = new[] { "agent", "voice" } });
-            comps.Add(new Component { Id = "capcut", Title = "Монтаж в CapCut", Desc = "Агент собирает проекты CapCut (нужен установленный CapCut).", Size = "≈ 150 МБ", Default = false, Needs = new[] { "mcp" } });
-            comps.Add(new Component { Id = "models", Title = "Локальные модели", Desc = "Движок llama.cpp под вашу видеокарту. Сами модели — в лаунчере, по вкусу и по силам ПК.", Size = llamaSize, Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "hud", Title = "Живые обои J.A.R.V.I.S. HUD", Desc = "Анимированный HUD на рабочем столе: реактор, часы, датчики.", Size = "≈ 7 МБ", Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "winlook", Title = "Оформление Windows", Desc = "Панель задач, Пуск, уведомления, Проводник, окна и Alt+Tab через встроенный Windhawk. Отключается в лаунчере.", Size = "≈ 150 МБ", Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "icons", Title = "Иконки Джарвиса", Desc = "Значки рабочего стола, папок и ярлыков. Прежние сохраняются и возвращаются одной кнопкой.", Size = "< 1 МБ", Default = false, Needs = new[] { "core" } });
+            comps.Add(new Component { Id = "core", TitleRu = "Лаунчер J.A.R.V.I.S.", TitleEn = "J.A.R.V.I.S. launcher", DescRu = "Панель управления в стиле Джарвиса, телеметрия, портативный Node.js.", DescEn = "A Jarvis-style control panel, telemetry, portable Node.js.", Size = "≈ 40 МБ", Default = true, Required = true });
+            comps.Add(new Component { Id = "agent", TitleRu = "ИИ-агент DeepSeek Harness", TitleEn = "DeepSeek Harness AI agent", DescRu = "Агент с темой Джарвиса, пресетами и скиллами, интерфейс на английском или русском. Нужен свой ключ DeepSeek.", DescEn = "The agent with the Jarvis theme, presets and skills, English or Russian interface. Needs your own DeepSeek key.", Size = "≈ 600 МБ", Default = true, Needs = new[] { "core" } });
+            comps.Add(new Component { Id = "voice", TitleRu = "Голос Джарвиса", TitleEn = "Jarvis voice", DescRu = "Голосовой режим агента: реактор, распознавание речи, озвучка ответов.", DescEn = "The agent's voice mode: the reactor, speech recognition, spoken replies.", Size = "≈ 150 МБ", Default = true, Needs = new[] { "agent" } });
+            comps.Add(new Component { Id = "mcp", TitleRu = "Управление ПК и программами", TitleEn = "PC and app control", DescRu = "MCP-инструменты агента: окна Windows, браузер, Blender.", DescEn = "The agent's MCP tools: Windows windows, the browser, Blender.", Size = "≈ 300 МБ", Default = true, Needs = new[] { "agent", "voice" } });
+            comps.Add(new Component { Id = "capcut", TitleRu = "Монтаж в CapCut", TitleEn = "CapCut editing", DescRu = "Агент собирает проекты CapCut (нужен установленный CapCut).", DescEn = "The agent builds CapCut projects (CapCut must be installed).", Size = "≈ 150 МБ", Default = false, Needs = new[] { "mcp" } });
+            comps.Add(new Component { Id = "models", TitleRu = "Локальные модели", TitleEn = "Local models", DescRu = "Движок llama.cpp под вашу видеокарту. Сами модели — в лаунчере, по вкусу и по силам ПК.", DescEn = "The llama.cpp engine for your GPU. The models themselves are in the launcher, to taste and to what your PC can run.", Size = llamaSize, Default = true, Needs = new[] { "core" } });
+            comps.Add(new Component { Id = "hud", TitleRu = "Живые обои J.A.R.V.I.S. HUD", TitleEn = "J.A.R.V.I.S. HUD live wallpaper", DescRu = "Анимированный HUD на рабочем столе: реактор, часы, датчики.", DescEn = "An animated HUD on the desktop: the reactor, a clock, sensors.", Size = "≈ 7 МБ", Default = true, Needs = new[] { "core" } });
+            comps.Add(new Component { Id = "winlook", TitleRu = "Оформление Windows", TitleEn = "Windows look", DescRu = "Панель задач, Пуск, уведомления, Проводник, окна и Alt+Tab через встроенный Windhawk. Отключается в лаунчере.", DescEn = "Taskbar, Start, notifications, File Explorer, windows and Alt+Tab through the built-in Windhawk. Can be turned off in the launcher.", Size = "≈ 150 МБ", Default = true, Needs = new[] { "core" } });
+            comps.Add(new Component { Id = "icons", TitleRu = "Иконки Джарвиса", TitleEn = "Jarvis icons", DescRu = "Значки рабочего стола, папок и ярлыков. Прежние сохраняются и возвращаются одной кнопкой.", DescEn = "Desktop, folder and shortcut icons. The old ones are backed up and restored with one button.", Size = "< 1 МБ", Default = false, Needs = new[] { "core" } });
 
             var list = F<StackPanel>("CompList");
             foreach (var c in comps)
             {
                 var text = new StackPanel();
                 var head = new DockPanel();
-                var size = new TextBlock { Text = c.Size, FontSize = 12, Foreground = (Brush)Window.FindResource("Steel"), Margin = new Thickness(12, 0, 0, 0) };
-                DockPanel.SetDock(size, Dock.Right);
-                head.Children.Add(size);
-                head.Children.Add(new TextBlock { Text = c.Title + (c.Required ? "  · обязательно" : ""), FontSize = 15 });
+                c.SizeBlock = new TextBlock { FontSize = 12, Foreground = (Brush)Window.FindResource("Steel"), Margin = new Thickness(12, 0, 0, 0) };
+                DockPanel.SetDock(c.SizeBlock, Dock.Right);
+                head.Children.Add(c.SizeBlock);
+                c.TitleBlock = new TextBlock { FontSize = 15 };
+                head.Children.Add(c.TitleBlock);
                 text.Children.Add(head);
-                text.Children.Add(new TextBlock { Text = c.Desc, FontSize = 12.5, Foreground = (Brush)Window.FindResource("Steel"), Margin = new Thickness(0, 3, 0, 0) });
+                c.DescBlock = new TextBlock { FontSize = 12.5, Foreground = (Brush)Window.FindResource("Steel"), Margin = new Thickness(0, 3, 0, 0) };
+                text.Children.Add(c.DescBlock);
                 c.Box = new CheckBox { Content = text, IsChecked = c.Default, IsEnabled = !c.Required, Tag = c };
                 c.Box.Checked += OnCompChecked;
                 c.Box.Unchecked += OnCompUnchecked;
                 list.Children.Add(c.Box);
             }
-            UpdateSize();
+            ApplyLang();
 
             F<Button>("WelcomeNext").Click += (s, e) => Show("PageComponents");
             F<Button>("CompBack").Click += (s, e) => Show("PageWelcome");
@@ -349,7 +416,7 @@ namespace Jarvis
             F<TextBox>("FolderBox").TextChanged += (s, e) => UpdateFolderInfo();
             F<Button>("BrowseBtn").Click += (s, e) =>
             {
-                using (var d = new System.Windows.Forms.FolderBrowserDialog { Description = "Куда установить J.A.R.V.I.S.?" })
+                using (var d = new System.Windows.Forms.FolderBrowserDialog { Description = L("Куда установить J.A.R.V.I.S.?", "Where to install J.A.R.V.I.S.?") })
                     if (d.ShowDialog() == System.Windows.Forms.DialogResult.OK)
                         F<TextBox>("FolderBox").Text = Path.Combine(d.SelectedPath, "JARVIS");
             };
@@ -357,7 +424,7 @@ namespace Jarvis
             F<Button>("DoneBtn").Click += (s, e) => Finish();
             Show("PageWelcome");
 
-            // Unattended: /silent [/dir:C:\JARVIS] [/components:core,agent,...] [/noshortcut] [/nolaunch]
+            // Unattended: /silent [/dir:C:\JARVIS] [/components:core,agent,...] [/noshortcut] [/nolaunch] [/lang:ru]
             string[] argv = Environment.GetCommandLineArgs();
             if (argv.Any(a => a.Equals("/silent", StringComparison.OrdinalIgnoreCase)))
             {
@@ -398,7 +465,9 @@ namespace Jarvis
         void UpdateSize()
         {
             int n = comps.Count(c => c.Box.IsChecked == true);
-            F<TextBlock>("SizeText").Text = "Выбрано компонентов: " + n + " из " + comps.Count + (Bundle.Has("vendor-dsh.zip") ? ". Всё нужное уже внутри установщика — интернет почти не понадобится." : ". Нужен интернет: всё тяжёлое скачивается при установке.");
+            F<TextBlock>("SizeText").Text = L("Выбрано компонентов: " + n + " из " + comps.Count, "Components selected: " + n + " of " + comps.Count) + (Bundle.Has("vendor-dsh.zip")
+                ? L(". Всё нужное уже внутри установщика — интернет почти не понадобится.", ". Everything needed is inside the installer — almost no internet needed.")
+                : L(". Нужен интернет: всё тяжёлое скачивается при установке.", ". Internet needed: the heavy parts are downloaded during setup."));
         }
 
         void UpdateFolderInfo()
@@ -408,27 +477,29 @@ namespace Jarvis
             try
             {
                 var drive = new DriveInfo(Path.GetPathRoot(Path.GetFullPath(p)));
-                info = "Свободно на диске " + drive.Name + ": " + (drive.AvailableFreeSpace / 1073741824) + " ГБ. Нужно до 2–3 ГБ, плюс место под модели.";
-                if (p.Any(ch => ch > 127) || p.Contains(" ")) info += "\nЛучше без пробелов и русских букв в пути — так надёжнее для всех инструментов.";
+                info = L("Свободно на диске " + drive.Name + ": " + (drive.AvailableFreeSpace / 1073741824) + " ГБ. Нужно до 2–3 ГБ, плюс место под модели.",
+                    "Free on drive " + drive.Name + ": " + (drive.AvailableFreeSpace / 1073741824) + " GB. Up to 2–3 GB is needed, plus space for models.");
+                if (p.Any(ch => ch > 127) || p.Contains(" ")) info += L("\nЛучше без пробелов и русских букв в пути — так надёжнее для всех инструментов.", "\nBetter without spaces or non-Latin letters in the path — more reliable for every tool.");
             }
-            catch { info = "Укажите полный путь, например C:\\JARVIS"; }
+            catch { info = L("Укажите полный путь, например C:\\JARVIS", "Enter a full path, for example C:\\JARVIS"); }
             F<TextBlock>("FolderInfo").Text = info;
         }
 
         void BeginInstall(bool unattended = false)
         {
             string p = F<TextBox>("FolderBox").Text.Trim();
-            try { root = Path.GetFullPath(p).TrimEnd('\\'); } catch { MessageBox.Show(Window, "Неверный путь к папке."); return; }
+            try { root = Path.GetFullPath(p).TrimEnd('\\'); } catch { MessageBox.Show(Window, L("Неверный путь к папке.", "Invalid folder path.")); return; }
             if (!unattended && Directory.Exists(root) && Directory.EnumerateFileSystemEntries(root).Any() && !File.Exists(Path.Combine(root, "install.json")))
             {
-                if (MessageBox.Show(Window, "Папка " + root + " не пустая. Установить в неё всё равно?", "J.A.R.V.I.S.", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+                if (MessageBox.Show(Window, L("Папка " + root + " не пустая. Установить в неё всё равно?", "The folder " + root + " is not empty. Install into it anyway?"), "J.A.R.V.I.S.", MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             }
             var selected = comps.Where(c => c.Box.IsChecked == true).Select(c => c.Id).ToList();
             bool shortcut = F<CheckBox>("ShortcutBox").IsChecked == true;
             busy = true;
+            F<UIElement>("LangBar").Visibility = Visibility.Collapsed;
             Show("PageProgress");
             StartReactor(3.0);
-            F<TextBlock>("Subtitle").Text = "ИДЁТ УСТАНОВКА";
+            F<TextBlock>("Subtitle").Text = L("ИДЁТ УСТАНОВКА", "INSTALLING");
             var t = new Thread(() => RunInstall(selected, shortcut)) { IsBackground = true };
             t.Start();
         }
@@ -441,7 +512,7 @@ namespace Jarvis
                 Directory.CreateDirectory(root);
                 Directory.CreateDirectory(Path.Combine(root, "data", "launcher"));
                 logFile = new StreamWriter(Path.Combine(root, "data", "launcher", "install.log"), true, new UTF8Encoding(false));
-                Log("Установка J.A.R.V.I.S. " + Src.Version + " в " + root + " · компоненты: " + string.Join(", ", sel));
+                Log(L("Установка J.A.R.V.I.S. ", "Installing J.A.R.V.I.S. ") + Src.Version + L(" в ", " to ") + root + L(" · компоненты: ", " · components: ") + string.Join(", ", sel) + " · lang: " + (ru ? "ru" : "en"));
 
                 // Steps with rough weights (share of the progress bar).
                 var steps = new List<Tuple<string, double, Action>>();
@@ -461,7 +532,7 @@ namespace Jarvis
                     try { s.Item3(); }
                     catch (Exception ex)
                     {
-                        Log("✖ Ошибка: " + ex.Message);
+                        Log(L("✖ Ошибка: ", "✖ Error: ") + ex.Message);
                         if (s.Item1 == "core") throw;
                         failures.Add(comps.First(c => c.Id == s.Item1).Title + ": " + ex.Message);
                     }
@@ -469,25 +540,26 @@ namespace Jarvis
                     Progress(0, null);
                 }
                 progressBase = 0.97; progressSpan = 0.03;
-                Step("Финальная настройка", "Ярлыки, запись в «Приложения и возможности»");
+                Step(L("Финальная настройка", "Final setup"), L("Ярлыки, запись в «Приложения и возможности»", "Shortcuts, the \"Apps & features\" entry"));
+                WriteLang();
                 if (sel.Contains("agent")) ComposeFullPreset(sel);
                 WriteInstallJson(sel);
                 RegisterUninstall();
                 if (shortcut) CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "J.A.R.V.I.S..lnk"));
                 CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "J.A.R.V.I.S..lnk"));
-                CreateUninstallShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Удалить J.A.R.V.I.S..lnk"));
-                Progress(1, "Готово");
-                Log(failures.Count == 0 ? "✔ Установка завершена" : "Установка завершена с ошибками: " + failures.Count);
+                CreateUninstallShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), L("Удалить J.A.R.V.I.S..lnk", "Uninstall J.A.R.V.I.S..lnk")));
+                Progress(1, L("Готово", "Done"));
+                Log(failures.Count == 0 ? L("✔ Установка завершена", "✔ Setup complete") : L("Установка завершена с ошибками: ", "Setup finished with errors: ") + failures.Count);
                 Ui(() => { ShowDone(failures); if (silent) { Environment.ExitCode = failures.Count == 0 ? 0 : 2; Finish(); } });
             }
             catch (Exception ex)
             {
-                Log("✖ Установка прервана: " + ex.Message);
+                Log(L("✖ Установка прервана: ", "✖ Setup aborted: ") + ex.Message);
                 Ui(() =>
                 {
-                    F<TextBlock>("DoneTitle").Text = "Сбой установки.";
+                    F<TextBlock>("DoneTitle").Text = L("Сбой установки.", "Setup failed.");
                     F<TextBlock>("DoneTitle").Foreground = new SolidColorBrush(Color.FromRgb(255, 95, 86));
-                    F<TextBlock>("DoneText").Text = ex.Message + "\n\nЖурнал: " + Path.Combine(root ?? "", "data", "launcher", "install.log") + "\nПроверьте интернет и запустите установку ещё раз — уже скачанное не пропадёт.";
+                    F<TextBlock>("DoneText").Text = ex.Message + L("\n\nЖурнал: ", "\n\nLog: ") + Path.Combine(root ?? "", "data", "launcher", "install.log") + L("\nПроверьте интернет и запустите установку ещё раз — уже скачанное не пропадёт.", "\nCheck your connection and run setup again — what was downloaded is kept.");
                     F<CheckBox>("LaunchBox").IsChecked = false;
                     F<CheckBox>("LaunchBox").Visibility = Visibility.Collapsed;
                     busy = false; Show("PageDone"); StartReactor(0.5);
@@ -503,20 +575,21 @@ namespace Jarvis
         {
             busy = false;
             StartReactor(1.0);
-            F<TextBlock>("Subtitle").Text = "УСТАНОВКА ЗАВЕРШЕНА";
+            F<TextBlock>("Subtitle").Text = L("УСТАНОВКА ЗАВЕРШЕНА", "SETUP COMPLETE");
             var sb = new StringBuilder();
-            sb.AppendLine("J.A.R.V.I.S. установлен в " + root + ".");
-            sb.AppendLine("Удалить: uninstall.exe в этой папке, «Пуск» → «Удалить J.A.R.V.I.S.» или «Приложения и возможности».");
-            if (selection.Contains("agent")) sb.AppendLine("При первом запуске агента введите свой ключ DeepSeek (platform.deepseek.com → API keys).");
-            if (selection.Contains("models")) sb.AppendLine("Локальные модели: вкладка «Модели» в лаунчере — подборка под ваш ПК.");
-            if (selection.Contains("winlook")) sb.AppendLine("Оформление Windows включится после запуска лаунчера (без встроенного Windhawk — докачается за пару минут).");
+            sb.AppendLine(L("J.A.R.V.I.S. установлен в ", "J.A.R.V.I.S. is installed in ") + root + ".");
+            sb.AppendLine(L("Удалить: uninstall.exe в этой папке, «Пуск» → «Удалить J.A.R.V.I.S.» или «Приложения и возможности».", "To remove: uninstall.exe in this folder, Start → \"Uninstall J.A.R.V.I.S.\" or \"Apps & features\"."));
+            if (selection.Contains("agent")) sb.AppendLine(L("При первом запуске агента введите свой ключ DeepSeek (platform.deepseek.com → API keys).", "When the agent first starts, enter your DeepSeek key (platform.deepseek.com → API keys)."));
+            if (selection.Contains("models")) sb.AppendLine(L("Локальные модели: вкладка «Модели» в лаунчере — подборка под ваш ПК.", "Local models: the Models tab in the launcher — picks for your PC."));
+            if (selection.Contains("winlook")) sb.AppendLine(L("Оформление Windows включится после запуска лаунчера (без встроенного Windhawk — докачается за пару минут).", "The Windows look turns on after the launcher starts (without the built-in Windhawk it downloads in a couple of minutes)."));
+            sb.AppendLine(L("Язык можно поменять в лаунчере: «Система» → «Язык».", "You can change the language in the launcher: System → Language."));
             if (failures.Count > 0)
             {
-                F<TextBlock>("DoneTitle").Text = "Установлено, но не всё.";
+                F<TextBlock>("DoneTitle").Text = L("Установлено, но не всё.", "Installed, but not everything.");
                 sb.AppendLine();
-                sb.AppendLine("Не получилось:");
+                sb.AppendLine(L("Не получилось:", "Failed:"));
                 foreach (var f in failures) sb.AppendLine("• " + f);
-                sb.AppendLine("Запустите установщик ещё раз — он докачает недостающее.");
+                sb.AppendLine(L("Запустите установщик ещё раз — он докачает недостающее.", "Run the installer again — it fetches what is missing."));
             }
             F<TextBlock>("DoneText").Text = sb.ToString();
             Show("PageDone");
@@ -531,13 +604,13 @@ namespace Jarvis
         // ------------------------------------------------------------------ components
         void InstallCore()
         {
-            Step("Лаунчер J.A.R.V.I.S.", "Распаковка файлов");
+            Step(L("Лаунчер J.A.R.V.I.S.", "J.A.R.V.I.S. launcher"), L("Распаковка файлов", "Unpacking files"));
             ExtractPayload("core");
             Progress(0.2, null);
             string node = Path.Combine(root, "runtime", "node");
             if (!File.Exists(Path.Combine(node, "node.exe")))
             {
-                Step("Node.js 24", "Портативная версия, без установки в систему");
+                Step("Node.js 24", L("Портативная версия, без установки в систему", "Portable, not installed system-wide"));
                 Fetch(Src.NodeUrl, Src.NodeSha, 0.2, 0.9, node);
             }
             Progress(1, null);
@@ -545,7 +618,7 @@ namespace Jarvis
 
         void InstallAgent()
         {
-            Step("ИИ-агент DeepSeek Harness", "Файлы агента и голосового плагина");
+            Step(L("ИИ-агент DeepSeek Harness", "DeepSeek Harness AI agent"), L("Файлы агента и голосового плагина", "Agent and voice plugin files"));
             ExtractPayload("agent");
             string projects = @"C:\Projects";
             try
@@ -555,22 +628,22 @@ namespace Jarvis
                 string tpl = Path.Combine(root, "agent", "rules.yaml");
                 if (!File.Exists(rules) && File.Exists(tpl)) File.Copy(tpl, rules);
             }
-            catch (Exception ex) { Log("Папка проектов: " + ex.Message); }
+            catch (Exception ex) { Log(L("Папка проектов: ", "Projects folder: ") + ex.Message); }
             Progress(0.1, null);
             string dshDir = Path.Combine(root, "runtime", "dsh");
             if (!File.Exists(Path.Combine(dshDir, "node_modules", "@deepseek-ai", "dsh", "lib", "bin.js")))
             {
-                Step("ИИ-агент DeepSeek Harness", "Готовые файлы агента");
+                Step(L("ИИ-агент DeepSeek Harness", "DeepSeek Harness AI agent"), L("Готовые файлы агента", "Prebuilt agent files"));
                 if (!Unbundle("vendor-dsh.zip", dshDir, 0.1, 0.6))
                 {
-                    Step("ИИ-агент DeepSeek Harness", "npm: " + Src.Dsh + " (≈ 5 минут)");
+                    Step(L("ИИ-агент DeepSeek Harness", "DeepSeek Harness AI agent"), "npm: " + Src.Dsh + L(" (≈ 5 минут)", " (≈ 5 minutes)"));
                     // runtime\dsh\package-lock.json (from the payload) pins every package of the tested tree;
                     // its package.json carries the allowScripts policy (Src.DshScripts).
                     Npm("ci --no-fund --no-audit --loglevel=error", dshDir);
                 }
             }
             Progress(0.6, null);
-            Step("Плагины агента", "Русский интерфейс, поиск, счётчик стоимости, MCP, правила доступа, Джарвис");
+            Step(L("Плагины агента", "Agent plugins"), L("Русский интерфейс, поиск, счётчик стоимости, MCP, правила доступа, Джарвис", "Russian UI, search, cost counter, MCP, access rules, Jarvis"));
             string profile = Path.Combine(root, "agent", "home", "profiles", "web");
             string profileModules = Path.Combine(profile, "node_modules");
             if (Unbundle("vendor-profile.zip", profileModules, 0.6, 0.95))
@@ -583,7 +656,7 @@ namespace Jarvis
         void InstallVoice()
         {
             EnsureUv();
-            Step("Голос Джарвиса", "Python 3.12 и синтез речи edge-tts");
+            Step(L("Голос Джарвиса", "Jarvis voice"), L("Python 3.12 и синтез речи edge-tts", "Python 3.12 and edge-tts speech synthesis"));
             Run(UvExe("uv.exe"), "python install 3.12", root, UvEnv(), 900);
             Progress(0.6, null);
             UvWarm("uvx.exe", "{offline} --python 3.12 --from edge-tts edge-tts --help", root, 900);
@@ -593,7 +666,7 @@ namespace Jarvis
         void InstallMcp()
         {
             EnsureUv();
-            Step("Управление ПК и программами", "Браузер: Playwright MCP");
+            Step(L("Управление ПК и программами", "PC and app control"), L("Браузер: Playwright MCP", "Browser: Playwright MCP"));
             string pw = Path.Combine(root, "tools", "mcp", "playwright");
             if (!Unbundle("vendor-playwright.zip", pw, 0, 0.4))
             {
@@ -601,10 +674,10 @@ namespace Jarvis
                 Npm("install " + Src.PlaywrightMcp + " --prefix \"" + pw + "\" --no-fund --no-audit --loglevel=error", pw);
             }
             Progress(0.4, null);
-            Step("Управление ПК и программами", "Windows-MCP");
+            Step(L("Управление ПК и программами", "PC and app control"), "Windows-MCP");
             UvWarm("uvx.exe", "{offline} --python 3.12 " + Src.WindowsMcp + " --help", root, 900);
             Progress(0.7, null);
-            Step("Управление ПК и программами", "Blender MCP");
+            Step(L("Управление ПК и программами", "PC and app control"), "Blender MCP");
             ExtractPayload("blender");
             UvWarm("uvx.exe", "{offline} --python 3.12 --from " + Src.BlenderMcp + " python -c 0", root, 600);
             Progress(1, null);
@@ -614,14 +687,14 @@ namespace Jarvis
         {
             EnsureUv();
             string dir = Path.Combine(root, "tools", "mcp", "VectCutAPI");
-            Step("Монтаж в CapCut", "VectCutAPI (Apache-2.0)");
+            Step(L("Монтаж в CapCut", "CapCut editing"), "VectCutAPI (Apache-2.0)");
             if (!File.Exists(Path.Combine(dir, "mcp_server.py")))
             {
                 Fetch(Src.VectCutUrl, Src.VectCutSha, 0, 0.3, dir, "vectcut.zip");
             }
             ExtractPayload("capcut");
             Progress(0.4, null);
-            Step("Монтаж в CapCut", "Python-окружение и зависимости");
+            Step(L("Монтаж в CapCut", "CapCut editing"), L("Python-окружение и зависимости", "Python environment and dependencies"));
             if (!File.Exists(Path.Combine(dir, ".venv", "Scripts", "python.exe")))
                 Run(UvExe("uv.exe"), "venv --python 3.12 .venv", dir, UvEnv(), 600);
             foreach (var req in new[] { "requirements.txt", "requirements-mcp.txt" })
@@ -633,19 +706,19 @@ namespace Jarvis
         void InstallModels()
         {
             string dir = Path.Combine(root, "runtime", "llama.cpp");
-            if (File.Exists(Path.Combine(dir, "llama-server.exe"))) { Log("Движок llama.cpp уже установлен"); Progress(1, null); return; }
+            if (File.Exists(Path.Combine(dir, "llama-server.exe"))) { Log(L("Движок llama.cpp уже установлен", "The llama.cpp engine is already installed")); Progress(1, null); return; }
             Directory.CreateDirectory(Path.Combine(root, "models"));
             if (gpuVendor == "nvidia")
             {
-                Step("Движок локальных моделей", "llama.cpp для NVIDIA (CUDA 12.4)");
+                Step(L("Движок локальных моделей", "Local model engine"), L("llama.cpp для NVIDIA (CUDA 12.4)", "llama.cpp for NVIDIA (CUDA 12.4)"));
                 Fetch(Src.LlamaBase + Src.LlamaCuda, Src.LlamaCudaSha, 0, 0.45, dir);
-                Step("Движок локальных моделей", "Библиотеки CUDA");
+                Step(L("Движок локальных моделей", "Local model engine"), L("Библиотеки CUDA", "CUDA libraries"));
                 Fetch(Src.LlamaBase + Src.CudaRt, Src.CudaRtSha, 0.45, 0.95, dir);
             }
             else
             {
                 bool gpu = gpuVendor == "amd" || gpuVendor == "intel";
-                Step("Движок локальных моделей", gpu ? "llama.cpp для видеокарты (Vulkan)" : "llama.cpp для процессора");
+                Step(L("Движок локальных моделей", "Local model engine"), gpu ? L("llama.cpp для видеокарты (Vulkan)", "llama.cpp for the GPU (Vulkan)") : L("llama.cpp для процессора", "llama.cpp for the CPU"));
                 if (gpu) Fetch(Src.LlamaBase + Src.LlamaVulkan, Src.LlamaVulkanSha, 0, 0.95, dir);
                 else Fetch(Src.LlamaBase + Src.LlamaCpu, Src.LlamaCpuSha, 0, 0.95, dir);
             }
@@ -654,7 +727,7 @@ namespace Jarvis
 
         void InstallHud()
         {
-            Step("Живые обои J.A.R.V.I.S. HUD", "");
+            Step(L("Живые обои J.A.R.V.I.S. HUD", "J.A.R.V.I.S. HUD live wallpaper"), "");
             ExtractPayload("hud");
             Progress(1, null);
         }
@@ -664,8 +737,8 @@ namespace Jarvis
         void InstallWinlook()
         {
             string dir = Path.Combine(root, "tools", "windhawk");
-            if (File.Exists(Path.Combine(dir, "windhawk.exe"))) { Log("Windhawk уже установлен"); Progress(1, null); return; }
-            Step("Оформление Windows", "Windhawk и моды Джарвиса");
+            if (File.Exists(Path.Combine(dir, "windhawk.exe"))) { Log(L("Windhawk уже установлен", "Windhawk is already installed")); Progress(1, null); return; }
+            Step(L("Оформление Windows", "Windows look"), L("Windhawk и моды Джарвиса", "Windhawk and the Jarvis mods"));
             Unbundle("vendor-windhawk.zip", dir, 0, 1);
             Progress(1, null);
         }
@@ -673,7 +746,7 @@ namespace Jarvis
         void EnsureUv()
         {
             if (File.Exists(UvExe("uv.exe"))) return;
-            Step("Python-инструменты", "uv 0.12, Python 3.12 и кэш пакетов");
+            Step(L("Python-инструменты", "Python tools"), L("uv 0.12, Python 3.12 и кэш пакетов", "uv 0.12, Python 3.12 and the package cache"));
             string uv = Path.Combine(root, "runtime", "uv");
             Fetch(Src.UvUrl, Src.UvSha, 0, 0.1, uv);
             // Python 3.12 + the package cache of the build PC: MCP tools and the voice install without the internet.
@@ -698,7 +771,7 @@ namespace Jarvis
             File.WriteAllText(Path.Combine(dir, "agent.cordis.yml"), sb.ToString(), new UTF8Encoding(false));
             File.Delete(basePath);
             try { Directory.Delete(Path.Combine(dir, "_mcp"), true); } catch { }
-            Log("Полный режим агента: MCP — " + string.Join(", ", wanted));
+            Log(L("Полный режим агента: MCP — ", "Agent full mode: MCP — ") + string.Join(", ", wanted));
         }
 
         // ------------------------------------------------------------------ plumbing
@@ -744,7 +817,7 @@ namespace Jarvis
                 catch (Exception ex)
                 {
                     if (attempt >= 3) throw;
-                    Log("  ↻ " + ex.Message + " — повтор через 10 с (попытка " + (attempt + 1) + " из 3)");
+                    Log("  ↻ " + ex.Message + L(" — повтор через 10 с (попытка ", " — retrying in 10 s (attempt ") + (attempt + 1) + L(" из 3)", " of 3)"));
                     Thread.Sleep(10000);
                 }
             }
@@ -771,11 +844,11 @@ namespace Jarvis
                 if (!p.WaitForExit(timeoutSec * 1000))
                 {
                     try { p.Kill(); } catch { }
-                    if (tolerant) { Log("  (остановлено по таймауту — это нормально для этого шага)"); return; }
-                    throw new Exception(Path.GetFileName(exe) + ": превышено время ожидания");
+                    if (tolerant) { Log(L("  (остановлено по таймауту — это нормально для этого шага)", "  (stopped on timeout — normal for this step)")); return; }
+                    throw new Exception(Path.GetFileName(exe) + L(": превышено время ожидания", ": timed out"));
                 }
                 p.WaitForExit();
-                if (p.ExitCode != 0 && !tolerant) throw new Exception(Path.GetFileName(exe) + " завершился с кодом " + p.ExitCode);
+                if (p.ExitCode != 0 && !tolerant) throw new Exception(Path.GetFileName(exe) + L(" завершился с кодом ", " exited with code ") + p.ExitCode);
             }
         }
 
@@ -785,7 +858,7 @@ namespace Jarvis
             string dir = Path.Combine(root, "data", "downloads");
             Directory.CreateDirectory(dir);
             string file = Path.Combine(dir, name ?? url.Substring(url.LastIndexOf('/') + 1));
-            if (File.Exists(file) && Sha256(file) == sha) { Log("  уже скачано: " + Path.GetFileName(file)); return file; }
+            if (File.Exists(file) && Sha256(file) == sha) { Log(L("  уже скачано: ", "  already downloaded: ") + Path.GetFileName(file)); return file; }
             Log("  ↓ " + url);
             var req = (HttpWebRequest)WebRequest.Create(url);
             req.UserAgent = "JARVIS-Setup/" + Src.Version;
@@ -805,7 +878,7 @@ namespace Jarvis
                     {
                         sw.Restart();
                         double f = total > 0 ? (double)got / total : 0;
-                        Progress(from + (to - from) * f, (got / 1048576) + (total > 0 ? " из " + (total / 1048576) : "") + " МБ");
+                        Progress(from + (to - from) * f, (got / 1048576) + (total > 0 ? L(" из ", " of ") + (total / 1048576) : "") + L(" МБ", " MB"));
                     }
                 }
             }
@@ -813,11 +886,11 @@ namespace Jarvis
             if (actual != sha)
             {
                 File.Delete(file + ".part");
-                throw new Exception("контрольная сумма не совпала для " + Path.GetFileName(file) + " — файл повреждён или подменён, установка остановлена");
+                throw new Exception(L("контрольная сумма не совпала для ", "checksum mismatch for ") + Path.GetFileName(file) + L(" — файл повреждён или подменён, установка остановлена", " — the file is damaged or tampered with, setup stopped"));
             }
             if (File.Exists(file)) File.Delete(file);
             File.Move(file + ".part", file);
-            Log("  ✔ SHA-256 совпал: " + Path.GetFileName(file));
+            Log(L("  ✔ SHA-256 совпал: ", "  ✔ SHA-256 matches: ") + Path.GetFileName(file));
             return file;
         }
 
@@ -834,7 +907,7 @@ namespace Jarvis
             string file = name ?? url.Substring(url.LastIndexOf('/') + 1);
             if (Bundle.HasSha(file, sha))
             {
-                Log("  из установщика: " + file);
+                Log(L("  из установщика: ", "  from the installer: ") + file);
                 Bundle.Verify(file);
                 using (var s = Bundle.Open(file)) ExtractZip(s, dest, true, from, to);
                 return;
@@ -849,7 +922,7 @@ namespace Jarvis
         bool Unbundle(string name, string dest, double from, double to)
         {
             if (!Bundle.Has(name)) return false;
-            Log("  из установщика: " + name + " (" + (Bundle.Size(name) / 1048576) + " МБ)");
+            Log(L("  из установщика: ", "  from the installer: ") + name + " (" + (Bundle.Size(name) / 1048576) + L(" МБ)", " MB)"));
             Bundle.Verify(name);
             using (var s = Bundle.Open(name)) ExtractZip(s, dest, false, from, to);
             return true;
@@ -873,7 +946,7 @@ namespace Jarvis
                 foreach (var e in z.Entries)
                 {
                     done++;
-                    if (to > from && sw.ElapsedMilliseconds > 250) { sw.Restart(); Progress(from + (to - from) * done / total, "файлов: " + done + " из " + total); }
+                    if (to > from && sw.ElapsedMilliseconds > 250) { sw.Restart(); Progress(from + (to - from) * done / total, L("файлов: " + done + " из " + total, "files: " + done + " of " + total)); }
                     string rel = e.FullName.Replace('\\', '/').Substring(prefix.Length);
                     if (rel.Length == 0) continue;
                     string target = Path.GetFullPath(Path.Combine(dest, rel.Replace('/', '\\')));
@@ -899,7 +972,7 @@ namespace Jarvis
             try { RunOnce(UvExe(exe), args.Replace("{offline}", "--offline"), cwd, UvEnv(), timeoutSec, false); }
             catch (Exception ex)
             {
-                Log("  нет в кэше (" + ex.Message + ") — докачиваю");
+                Log(L("  нет в кэше (", "  not in the cache (") + ex.Message + L(") — докачиваю", ") — downloading"));
                 Run(UvExe(exe), args.Replace("{offline} ", "").Replace("{offline}", ""), cwd, UvEnv(), timeoutSec, true);
             }
         }
@@ -936,9 +1009,25 @@ namespace Jarvis
                     }
                     else e.ExtractToFile(target, true);
                 }
-                if (count == 0) throw new Exception("в установщике нет файлов компонента «" + component + "» — файл установщика повреждён");
-                Log("  распаковано файлов: " + count);
+                if (count == 0) throw new Exception(L("в установщике нет файлов компонента «" + component + "» — файл установщика повреждён", "the installer has no files for the \"" + component + "\" component — the installer file is damaged"));
+                Log(L("  распаковано файлов: ", "  files unpacked: ") + count);
             }
+        }
+
+        // data\launcher\settings.json: {"lang": "en" | "ru"} — read by the launcher, agent plugins, bot and HUD.
+        void WriteLang()
+        {
+            string file = Path.Combine(root, "data", "launcher", "settings.json");
+            string lang = ru ? "ru" : "en";
+            string json = "";
+            try { if (File.Exists(file)) json = File.ReadAllText(file, Encoding.UTF8).Trim(); } catch { }
+            var key = new System.Text.RegularExpressions.Regex("\"lang\"\\s*:\\s*\"[^\"]*\"");
+            if (key.IsMatch(json)) json = key.Replace(json, "\"lang\": \"" + lang + "\"");
+            else if (json.StartsWith("{") && json.EndsWith("}") && json.Length > 2 && json.Substring(1, json.Length - 2).Trim().Length > 0)
+                json = json.Substring(0, json.Length - 1).TrimEnd() + ",\n  \"lang\": \"" + lang + "\"\n}";
+            else json = "{\n  \"lang\": \"" + lang + "\"\n}";
+            File.WriteAllText(file, json + "\n", new UTF8Encoding(false));
+            Log(L("Язык интерфейса: русский", "Interface language: English"));
         }
 
         void WriteInstallJson(List<string> sel)
@@ -991,11 +1080,11 @@ namespace Jarvis
                 lnk.WorkingDirectory = Path.Combine(root, "launcher");
                 lnk.IconLocation = Path.Combine(root, "launcher", "icons", "jarvis.ico") + ",0";
                 lnk.WindowStyle = 7;
-                lnk.Description = "J.A.R.V.I.S. — агент, локальные модели и оформление";
+                lnk.Description = L("J.A.R.V.I.S. — агент, локальные модели и оформление", "J.A.R.V.I.S. — the agent, local models and the look");
                 lnk.Save();
-                Log("Ярлык: " + lnkPath);
+                Log(L("Ярлык: ", "Shortcut: ") + lnkPath);
             }
-            catch (Exception ex) { Log("Ярлык не создан: " + ex.Message); }
+            catch (Exception ex) { Log(L("Ярлык не создан: ", "Shortcut not created: ") + ex.Message); }
         }
 
         void CreateUninstallShortcut(string lnkPath)
@@ -1007,10 +1096,10 @@ namespace Jarvis
                 lnk.TargetPath = Path.Combine(root, "uninstall.exe");
                 lnk.Arguments = "/uninstall";
                 lnk.WorkingDirectory = root;
-                lnk.Description = "Удалить J.A.R.V.I.S.";
+                lnk.Description = L("Удалить J.A.R.V.I.S.", "Uninstall J.A.R.V.I.S.");
                 lnk.Save();
             }
-            catch (Exception ex) { Log("Ярлык удаления не создан: " + ex.Message); }
+            catch (Exception ex) { Log(L("Ярлык удаления не создан: ", "Uninstall shortcut not created: ") + ex.Message); }
         }
 
         // Starts the launcher; asks it to set up the Windows look / icons if those were chosen.
@@ -1031,10 +1120,14 @@ namespace Jarvis
             string[] argv = Environment.GetCommandLineArgs();
             int i = Array.FindIndex(argv, a => a.Equals("/root", StringComparison.OrdinalIgnoreCase));
             if (i >= 0 && i + 1 < argv.Length) root = argv[i + 1];
-            F<TextBlock>("Subtitle").Text = "УДАЛЕНИЕ";
-            F<TextBlock>("Greeting").Text = "Удаление J.A.R.V.I.S.";
-            F<Button>("WelcomeNext").Content = "УДАЛИТЬ";
-            F<TextBlock>("HwNote").Text = "Будут удалены папка " + root + " (агент, модели, настройки), ярлыки и автозапуск. Стандартные значки и вид Windows вернутся.";
+            // The installed language (unless /lang:ru was given).
+            try
+            {
+                string s = File.ReadAllText(Path.Combine(root, "data", "launcher", "settings.json"), Encoding.UTF8);
+                if (System.Text.RegularExpressions.Regex.IsMatch(s, "\"lang\"\\s*:\\s*\"ru\"")) ru = true;
+            }
+            catch { }
+            ApplyLang();
             F<Button>("WelcomeNext").Click += (s, e) =>
             {
                 // Can't delete the folder we run from: continue from a temp copy.
@@ -1043,7 +1136,7 @@ namespace Jarvis
                 {
                     string tmp = Path.Combine(Path.GetTempPath(), "jarvis-uninstall.exe");
                     CopyHead(me, tmp, Bundle.PeLength);
-                    Process.Start(tmp, "/uninstall /root \"" + root + "\" /go");
+                    Process.Start(tmp, "/uninstall /root \"" + root + "\" /go" + (ru ? " /lang:ru" : ""));
                     Window.Close();
                     return;
                 }
@@ -1055,14 +1148,27 @@ namespace Jarvis
             if (argv.Any(a => a == "/go")) RunUninstallAsync();
         }
 
+        void ApplyUninstallTexts()
+        {
+            F<TextBlock>("Subtitle").Text = L("УДАЛЕНИЕ", "UNINSTALL");
+            F<TextBlock>("Greeting").Text = L("Удаление J.A.R.V.I.S.", "Uninstall J.A.R.V.I.S.");
+            F<TextBlock>("Intro").Text = L("J.A.R.V.I.S. будет удалён с этого компьютера.", "J.A.R.V.I.S. will be removed from this PC.");
+            F<TextBlock>("ScanTitle").Text = L("СИСТЕМА", "SYSTEM");
+            F<Button>("WelcomeNext").Content = L("УДАЛИТЬ", "UNINSTALL");
+            F<Button>("DoneBtn").Content = L("ГОТОВО", "DONE");
+            F<TextBlock>("StepText").Text = L("Подготовка…", "Preparing…");
+            F<TextBlock>("HwNote").Text = L("Будут удалены папка " + root + " (агент, модели, настройки), ярлыки и автозапуск. Стандартные значки и вид Windows вернутся.",
+                "This removes the " + root + " folder (agent, models, settings), the shortcuts and autostart. Standard Windows icons and look come back.");
+        }
+
         void RunUninstallAsync()
         {
-            busy = true; Show("PageProgress"); StartReactor(3.0);
+            busy = true; F<UIElement>("LangBar").Visibility = Visibility.Collapsed; Show("PageProgress"); StartReactor(3.0);
             new Thread(() =>
             {
                 var problems = new List<string>();
                 progressBase = 0; progressSpan = 1;
-                Step("Остановка J.A.R.V.I.S.", "Агент, модели, обои, Windhawk");
+                Step(L("Остановка J.A.R.V.I.S.", "Stopping J.A.R.V.I.S."), L("Агент, модели, обои, Windhawk", "Agent, models, wallpaper, Windhawk"));
                 try { var r = WebRequest.Create("http://127.0.0.1:3190/api/shutdown"); r.Method = "POST"; r.Headers["X-Jarvis"] = "1"; r.ContentLength = 0; r.Timeout = 5000; r.GetResponse().Close(); } catch { }
                 string wh = Path.Combine(root, "tools", "windhawk", "windhawk.exe");
                 if (File.Exists(wh)) { try { var p = Process.Start(new ProcessStartInfo(wh, "-exit -wait -timeout 10000") { UseShellExecute = false, CreateNoWindow = true }); p.WaitForExit(20000); } catch { } }
@@ -1079,38 +1185,39 @@ namespace Jarvis
                 string winStyle = Path.Combine(root, "launcher", "tools", "win-style.ps1");
                 if (File.Exists(Path.Combine(root, "data", "launcher", "win-style-backup.json")) && File.Exists(winStyle))
                 {
-                    Step("Возвращаю стандартные значки", "");
+                    Step(L("Возвращаю стандартные значки", "Restoring the standard icons"), "");
                     try { Run(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"), "-NoProfile -ExecutionPolicy Bypass -File \"" + winStyle + "\" -Action restore", root, new Dictionary<string, string>(), 120, true); }
-                    catch (Exception ex) { problems.Add("значки: " + ex.Message); }
+                    catch (Exception ex) { problems.Add(L("значки: ", "icons: ") + ex.Message); }
                 }
                 Progress(0.5, null);
-                Step("Автозапуск и ярлыки", "");
+                Step(L("Автозапуск и ярлыки", "Autostart and shortcuts"), "");
                 try
                 {
                     using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                         if (k != null) foreach (var n in new[] { "JarvisHUD2", "Windhawk (J.A.R.V.I.S.)", "J.A.R.V.I.S. Telegram" })
                             { var v = k.GetValue(n) as string; if (v != null && v.IndexOf(root, StringComparison.OrdinalIgnoreCase) >= 0) k.DeleteValue(n, false); }
                 }
-                catch (Exception ex) { problems.Add("автозапуск: " + ex.Message); }
+                catch (Exception ex) { problems.Add(L("автозапуск: ", "autostart: ") + ex.Message); }
                 foreach (var lnk in new[] {
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "J.A.R.V.I.S..lnk"),
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "J.A.R.V.I.S..lnk"),
-                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Удалить J.A.R.V.I.S..lnk") })
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Удалить J.A.R.V.I.S..lnk"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Uninstall J.A.R.V.I.S..lnk") })
                     try { if (File.Exists(lnk)) File.Delete(lnk); } catch { }
                 try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\JARVIS", false); } catch { }
                 Progress(0.6, null);
-                Step("Удаляю файлы", root);
+                Step(L("Удаляю файлы", "Deleting files"), root);
                 for (int attempt = 0; attempt < 5 && Directory.Exists(root); attempt++)
                 {
                     try { Directory.Delete(root, true); }
-                    catch (Exception ex) { if (attempt == 4) problems.Add("папка: " + ex.Message); Thread.Sleep(1500); }
+                    catch (Exception ex) { if (attempt == 4) problems.Add(L("папка: ", "folder: ") + ex.Message); Thread.Sleep(1500); }
                 }
                 Progress(1, null);
                 Ui(() =>
                 {
                     busy = false; StartReactor(0.6);
-                    F<TextBlock>("DoneTitle").Text = problems.Count == 0 ? "J.A.R.V.I.S. удалён." : "Удалено, но не всё.";
-                    F<TextBlock>("DoneText").Text = problems.Count == 0 ? "Всего доброго, сэр." : "Не получилось:\n• " + string.Join("\n• ", problems) + "\nУдалите остатки вручную.";
+                    F<TextBlock>("DoneTitle").Text = problems.Count == 0 ? L("J.A.R.V.I.S. удалён.", "J.A.R.V.I.S. removed.") : L("Удалено, но не всё.", "Removed, but not everything.");
+                    F<TextBlock>("DoneText").Text = problems.Count == 0 ? L("Всего доброго, сэр.", "Goodbye, sir.") : L("Не получилось:\n• ", "Failed:\n• ") + string.Join("\n• ", problems) + L("\nУдалите остатки вручную.", "\nRemove the leftovers by hand.");
                     Show("PageDone");
                 });
             }) { IsBackground = true }.Start();

@@ -125,6 +125,10 @@
             <TextBlock x:Name="Subtitle" Text="УСТАНОВКА · JUST A RATHER VERY INTELLIGENT SYSTEM" FontSize="11" Foreground="#7C9DB0" Margin="2,2,0,0"/>
           </StackPanel>
           <Button x:Name="CloseBtn" DockPanel.Dock="Right" Style="{StaticResource Btn}" Content="✕" Padding="12,4" VerticalAlignment="Top"/>
+          <StackPanel x:Name="LangBar" DockPanel.Dock="Right" Orientation="Horizontal" Margin="0,0,12,0" VerticalAlignment="Top" ToolTip="Language · Язык">
+            <Button x:Name="LangEn" Style="{StaticResource Btn}" Content="EN" Padding="10,4" Margin="0,0,4,0"/>
+            <Button x:Name="LangRu" Style="{StaticResource Btn}" Content="RU" Padding="10,4"/>
+          </StackPanel>
         </DockPanel>
 
         <Grid Grid.Row="1" Margin="0,18,0,0">
@@ -168,8 +172,8 @@
               </StackPanel>
               <StackPanel>
                 <TextBlock x:Name="Greeting" Text="Добрый день." FontSize="30" Foreground="#5CE1FF"/>
-                <TextBlock Margin="0,12,0,0" FontSize="15" LineHeight="22" Text="Этот мастер установит J.A.R.V.I.S. — ИИ-агента с голосом Джарвиса, локальные модели, обои HUD и оформление Windows. Вы сами выберете, что ставить. Всё скачивается с официальных источников и проверяется по контрольным суммам."/>
-                <TextBlock Text="СКАНИРОВАНИЕ СИСТЕМЫ" FontSize="12" Foreground="#5CE1FF" Margin="0,26,0,8"/>
+                <TextBlock x:Name="Intro" Margin="0,12,0,0" FontSize="15" LineHeight="22" Text="Этот мастер установит J.A.R.V.I.S. — ИИ-агента с голосом Джарвиса, локальные модели, обои HUD и оформление Windows. Вы сами выберете, что ставить. Всё скачивается с официальных источников и проверяется по контрольным суммам."/>
+                <TextBlock x:Name="ScanTitle" Text="СКАНИРОВАНИЕ СИСТЕМЫ" FontSize="12" Foreground="#5CE1FF" Margin="0,26,0,8"/>
                 <Border BorderBrush="#335CE1FF" BorderThickness="1" Background="#0A5CE1FF" Padding="14,10">
                   <StackPanel>
                     <TextBlock x:Name="HwGpu" FontSize="14" Text="Видеокарта: …"/>
@@ -190,7 +194,7 @@
                 </StackPanel>
                 <TextBlock x:Name="SizeText" VerticalAlignment="Center" Foreground="#7C9DB0" FontSize="12"/>
               </DockPanel>
-              <TextBlock DockPanel.Dock="Top" Text="ЧТО УСТАНОВИТЬ" FontSize="12" Foreground="#5CE1FF" Margin="0,0,0,10"/>
+              <TextBlock x:Name="CompTitle" DockPanel.Dock="Top" Text="ЧТО УСТАНОВИТЬ" FontSize="12" Foreground="#5CE1FF" Margin="0,0,0,10"/>
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel x:Name="CompList"/>
               </ScrollViewer>
@@ -203,17 +207,17 @@
                 <Button x:Name="InstallBtn" Style="{StaticResource Primary}" Content="УСТАНОВИТЬ"/>
               </StackPanel>
               <StackPanel>
-                <TextBlock Text="ПАПКА УСТАНОВКИ" FontSize="12" Foreground="#5CE1FF" Margin="0,0,0,10"/>
+                <TextBlock x:Name="FolderTitle" Text="ПАПКА УСТАНОВКИ" FontSize="12" Foreground="#5CE1FF" Margin="0,0,0,10"/>
                 <DockPanel>
                   <Button x:Name="BrowseBtn" DockPanel.Dock="Right" Style="{StaticResource Btn}" Content="ОБЗОР" Margin="10,0,0,0"/>
                   <TextBox x:Name="FolderBox" FontSize="15" Padding="10,8" Background="#0D5CE1FF" Foreground="#DCF2FB" BorderBrush="#805CE1FF" CaretBrush="#5CE1FF" Text="C:\JARVIS"/>
                 </DockPanel>
                 <TextBlock x:Name="FolderInfo" Margin="0,10,0,0" FontSize="13" Foreground="#7C9DB0"/>
                 <CheckBox x:Name="ShortcutBox" Margin="0,22,0,0" IsChecked="True">
-                  <TextBlock FontSize="14" Text="Ярлык J.A.R.V.I.S. на рабочем столе"/>
+                  <TextBlock x:Name="ShortcutText" FontSize="14" Text="Ярлык J.A.R.V.I.S. на рабочем столе"/>
                 </CheckBox>
                 <Border Margin="0,14,0,0" BorderBrush="#5CFFB454" BorderThickness="2,0,0,0" Background="#0DFFB454" Padding="12,8">
-                  <TextBlock FontSize="12.5" Foreground="#FFD9A6" Text="Ключ DeepSeek не входит в установку — после первого запуска агент попросит ваш собственный ключ (platform.deepseek.com). Локальные модели работают и без него."/>
+                  <TextBlock x:Name="KeyNote" FontSize="12.5" Foreground="#FFD9A6" Text="Ключ DeepSeek не входит в установку — после первого запуска агент попросит ваш собственный ключ (platform.deepseek.com). Локальные модели работают и без него."/>
                 </Border>
               </StackPanel>
             </DockPanel>
@@ -242,7 +246,7 @@
                 <TextBlock x:Name="DoneTitle" Text="Все системы в норме, сэр." FontSize="28" Foreground="#5CE1FF"/>
                 <TextBlock x:Name="DoneText" Margin="0,12,0,0" FontSize="14" LineHeight="21"/>
                 <CheckBox x:Name="LaunchBox" Margin="0,22,0,0" IsChecked="True">
-                  <TextBlock FontSize="14" Text="Запустить J.A.R.V.I.S."/>
+                  <TextBlock x:Name="LaunchText" FontSize="14" Text="Запустить J.A.R.V.I.S."/>
                 </CheckBox>
               </StackPanel>
             </DockPanel>

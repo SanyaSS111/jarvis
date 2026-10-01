@@ -3,6 +3,7 @@
 // llama-server port) and repairs the default model if it pointed at a removed one.
 'use strict';
 const fs = require('fs');
+const { T } = require('./i18n');
 
 const BEGIN = '# >>> J.A.R.V.I.S. launcher: local models (generated from models\\registry.json, do not edit by hand)';
 const END = '# <<< J.A.R.V.I.S. launcher';
@@ -20,7 +21,7 @@ function block(models, port) {
     const ctx = m.ctx || 16384;
     lines.push(
       `      ${providerId(m)}:`,
-      `        displayName: ${q('Локально · ' + m.title)}`,
+      `        displayName: ${q(T('Локально · ', 'Local · ') + m.title)}`,
       '        apiKeyEnv: LOCAL_LLAMA_API_KEY',
       '        api: openai-completions',
       `        baseURL: http://127.0.0.1:${port}/v1`,

@@ -14,7 +14,7 @@ const os = require('os');
 const cp = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
-const PORT = 3190;
+const PORT = Number(process.env.JARVIS_PORT) || 3190; // JARVIS_PORT: a second instance for testing
 const P = {
   ui: path.join(__dirname, 'ui'),
   data: path.join(ROOT, 'data'),
@@ -42,6 +42,10 @@ const { createWindhawk } = require('./lib/windhawk');
 const { createComfy } = require('./lib/comfy');
 const { createTelegram } = require('./lib/telegram');
 const { applyFixes } = require('./lib/fixes');
+const i18n = require('./lib/i18n');
+const { applyAgentLang } = require('./lib/agentlang');
+const T = i18n.T;
+i18n.init(ROOT);
 
 // ---------------------------------------------------------------- state
 const S = {
@@ -99,7 +103,7 @@ function tail(file, lines = 14) {
 }
 function fileLen(p) { try { return fs.statSync(p).size; } catch { return 0; } }
 function openEdgeApp(url, profileDir, size = '1280,860') {
-  if (!EDGE) { journal('Microsoft Edge не найден', 'error'); return null; }
+  if (!EDGE) { journal(T('Microsoft Edge не найден', 'Microsoft Edge not found'), 'error'); return null; }
   return cp.spawn(EDGE, [`--app=${url}`, `--user-data-dir=${profileDir}`, '--no-first-run',
     '--no-default-browser-check', `--window-size=${size}`], { windowsHide: false, stdio: 'ignore' });
 }
@@ -125,13 +129,13 @@ const agentUrlFile = path.join(P.agentData, 'url.txt');
 async function agentStart() {
   if (['starting', 'on'].includes(S.agent.status)) return agentOpen();
   S.agent = { status: 'starting', url: null, pid: null, error: null, since: Date.now(), windowOpen: false };
-  journal('Запуск агента DeepSeek Harness…');
+  journal(T('Запуск агента DeepSeek Harness…', 'Starting the DeepSeek Harness agent…'));
   const busy = await listeningPid(AGENT_PORT);
   if (busy) {
     const saved = fs.existsSync(agentUrlFile) ? fs.readFileSync(agentUrlFile, 'utf8').trim() : '';
     if (saved) {
       Object.assign(S.agent, { status: 'on', url: saved, pid: busy });
-      journal('Агент уже работал — подключился к нему', 'ok');
+      journal(T('Агент уже работал — подключился к нему', 'The agent was already running — connected to it'), 'ok');
       return agentOpen();
     }
     await killTree(busy);
@@ -166,7 +170,7 @@ async function agentStart() {
       S.agent.url = m[0];
       S.agent.status = 'on';
       fs.writeFileSync(agentUrlFile, m[0]);
-      journal(`Агент в сети за ${Math.round((Date.now() - S.agent.since) / 1000)} с`, 'ok');
+      journal(T(`Агент в сети за ${Math.round((Date.now() - S.agent.since) / 1000)} с`, `Agent online in ${Math.round((Date.now() - S.agent.since) / 1000)} s`), 'ok');
       agentOpen();
     }
   }, 500);
@@ -179,16 +183,16 @@ async function agentStart() {
       S.agent.status = 'off';
     } else {
       S.agent.status = 'error';
-      S.agent.error = `Сервер агента завершился (код ${code}).\n` + tail(path.join(P.agentData, 'dsh-web.err.log'), 10);
-      journal('Агент неожиданно остановился', 'error');
+      S.agent.error = T(`Сервер агента завершился (код ${code}).\n`, `The agent server exited (code ${code}).\n`) + tail(path.join(P.agentData, 'dsh-web.err.log'), 10);
+      journal(T('Агент неожиданно остановился', 'The agent stopped unexpectedly'), 'error');
     }
     S.agent.url = null; S.agent.pid = null; S.agent.windowOpen = false;
     scheduleIdleCheck();
   });
   setTimeout(() => {
     if (S.agent.status === 'starting' && own.agentProc === proc) {
-      S.agent.error = 'Агент не ответил за 2 минуты.\n' + tail(path.join(P.agentData, 'dsh-web.err.log'), 10);
-      journal('Агент не запустился вовремя', 'error');
+      S.agent.error = T('Агент не ответил за 2 минуты.\n', 'The agent did not respond within 2 minutes.\n') + tail(path.join(P.agentData, 'dsh-web.err.log'), 10);
+      journal(T('Агент не запустился вовремя', 'The agent did not start in time'), 'error');
       agentStop('error');
     }
   }, 120000);
@@ -208,7 +212,7 @@ function agentOpen() {
     own.agentWin = null;
     S.agent.windowOpen = false;
     if (S.agent.status === 'on') {
-      journal('Окно агента закрыто — останавливаю агента');
+      journal(T('Окно агента закрыто — останавливаю агента', 'Agent window closed — stopping the agent'));
       agentStop();
     }
   });
@@ -224,7 +228,7 @@ async function agentStop(finalStatus = 'off') {
   if (still) await killTree(still);
   try { fs.unlinkSync(agentUrlFile); } catch {}
   S.agent.url = null; S.agent.pid = null; S.agent.windowOpen = false;
-  if (finalStatus !== 'error') { S.agent.status = 'off'; journal('Агент остановлен'); }
+  if (finalStatus !== 'error') { S.agent.status = 'off'; journal(T('Агент остановлен', 'Agent stopped')); }
   scheduleIdleCheck();
 }
 
@@ -235,7 +239,7 @@ function themeEnabled() {
 }
 function setTheme(on) {
   fs.writeFileSync(themeFile, JSON.stringify({ enabled: !!on }, null, 2));
-  journal(on ? 'Интерфейс агента: тема Джарвиса' : 'Интерфейс агента: стандартная тема');
+  journal(on ? T('Интерфейс агента: тема Джарвиса', 'Agent interface: Jarvis theme') : T('Интерфейс агента: стандартная тема', 'Agent interface: standard theme'));
 }
 
 // An agent adopted after a launcher restart is not our child: watch its port instead.
@@ -244,7 +248,7 @@ async function agentPoll() {
   if (!(await listeningPid(AGENT_PORT))) {
     S.agent = { status: 'off', url: null, pid: null, error: null, since: null, windowOpen: false };
     try { fs.unlinkSync(agentUrlFile); } catch {}
-    journal('Агент остановлен');
+    journal(T('Агент остановлен', 'Agent stopped'));
     scheduleIdleCheck();
   }
 }
@@ -253,7 +257,7 @@ async function adoptExisting() {
   const agentPid = await listeningPid(AGENT_PORT);
   if (agentPid && fs.existsSync(agentUrlFile)) {
     Object.assign(S.agent, { status: 'on', url: fs.readFileSync(agentUrlFile, 'utf8').trim(), pid: agentPid, since: Date.now() });
-    journal('Найден работающий агент — подключился');
+    journal(T('Найден работающий агент — подключился', 'Found a running agent — connected'));
   }
   await models.adopt();
 }
@@ -274,20 +278,20 @@ function hudSave(patch) {
   return cfg;
 }
 function hudStart() {
-  if (!fs.existsSync(P.hudExe)) { journal('JarvisHUD2.exe не найден', 'error'); return; }
+  if (!fs.existsSync(P.hudExe)) { journal(T('JarvisHUD2.exe не найден', 'JarvisHUD2.exe not found'), 'error'); return; }
   const child = cp.spawn(P.hudExe, [], { cwd: P.hudDir, detached: true, stdio: 'ignore' });
   child.unref();
   S.hud.running = true;
-  journal('Обои HUD запущены', 'ok');
+  journal(T('Обои HUD запущены', 'HUD wallpaper started'), 'ok');
 }
 async function hudStop(quiet) {
   await run('taskkill.exe', ['/IM', 'JarvisHUD2.exe', '/F']);
   S.hud.running = false;
-  if (!quiet) journal('Обои HUD остановлены');
+  if (!quiet) journal(T('Обои HUD остановлены', 'HUD wallpaper stopped'));
 }
 async function hudApply(patch) {
   hudSave(patch);
-  journal('Настройки обоев сохранены');
+  journal(T('Настройки обоев сохранены', 'Wallpaper settings saved'));
   if (S.hud.running) {
     S.hud.restarting = true;
     await hudStop(true);
@@ -305,7 +309,7 @@ async function hudAutostart(on) {
   if (on) await run('reg.exe', ['add', RUN_KEY, '/v', 'JarvisHUD2', '/t', 'REG_SZ', '/d', `"${P.hudExe}"`, '/f']);
   else await run('reg.exe', ['delete', RUN_KEY, '/v', 'JarvisHUD2', '/f']);
   await hudAutostartRead();
-  journal(S.hud.autostart ? 'Обои будут запускаться вместе с Windows' : 'Автозапуск обоев выключен');
+  journal(S.hud.autostart ? T('Обои будут запускаться вместе с Windows', 'The wallpaper will start with Windows') : T('Автозапуск обоев выключен', 'Wallpaper autostart is off'));
 }
 const previewFile = path.join(P.launcherData, 'hud-preview.png');
 async function hudPreview() {
@@ -314,6 +318,32 @@ async function hudPreview() {
   await run(P.hudExe, ['--shot', previewFile, '--at', '99'], { timeout: 30000 });
   S.hud.previewBusy = false;
   if (fs.existsSync(previewFile)) S.hud.previewAt = fs.statSync(previewFile).mtimeMs;
+}
+
+// ---------------------------------------------------------------- language
+// The HUD reads "lang" from its own config.json; it is kept outside HUD_DEFAULTS so a reset keeps it.
+function syncHudLang() {
+  const cfg = hudConfig();
+  if (cfg.lang === i18n.lang()) return false;
+  fs.mkdirSync(path.dirname(P.hudCfg), { recursive: true });
+  fs.writeFileSync(P.hudCfg, JSON.stringify({ ...cfg, lang: i18n.lang() }, null, 2));
+  return true;
+}
+async function setLang(l) {
+  if (l === i18n.lang()) return;
+  i18n.set(l);
+  const changed = applyAgentLang(ROOT, l);
+  journal(T('Язык: русский', 'Language: English'), 'ok');
+  if (changed.length && S.agent.status === 'on') journal(T('Перезапустите агента, чтобы он перешёл на русский', 'Restart the agent to switch it to English'), 'warn');
+  if (syncHudLang() && S.hud.running && fs.existsSync(P.hudExe)) {
+    S.hud.restarting = true;
+    await hudStop(true);
+    await new Promise((r) => setTimeout(r, 700));
+    hudStart();
+    S.hud.restarting = false;
+  }
+  hudPreview();
+  broadcast('state', snapshot());
 }
 
 // ---------------------------------------------------------------- Windows icons in the Jarvis style
@@ -325,15 +355,15 @@ S.win = { busy: false };
 async function winStyle(action) {
   if (S.win.busy) return;
   S.win.busy = true;
-  journal(action === 'apply' ? 'Применяю оформление Windows в стиле Джарвиса…' : 'Возвращаю стандартные значки Windows…');
-  const { stdout, stderr } = await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', winStyleScript, '-Action', action],
+  journal(action === 'apply' ? T('Применяю оформление Windows в стиле Джарвиса…', 'Applying the Jarvis look to Windows…') : T('Возвращаю стандартные значки Windows…', 'Restoring the standard Windows icons…'));
+  const { stdout, stderr } = await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', winStyleScript, '-Action', action, '-Lang', i18n.lang()],
     { timeout: 120000 });
   S.win.busy = false;
   let r = null;
   try { r = JSON.parse(stdout.trim().split(/\r?\n/).pop()); } catch {}
-  if (!r) { journal('Оформление Windows: ошибка скрипта ' + stripAnsi(stderr).slice(0, 300), 'error'); return; }
-  if (action === 'apply') journal(`Значки рабочего стола: ${r.clsid}, папки: ${r.folders}, ярлыки: ${r.shortcuts}`, 'ok');
-  else journal(`Стандартные значки возвращены (${r.restored})`, 'ok');
+  if (!r) { journal(T('Оформление Windows: ошибка скрипта ', 'Windows look: script error ') + stripAnsi(stderr).slice(0, 300), 'error'); return; }
+  if (action === 'apply') journal(T(`Значки рабочего стола: ${r.clsid}, папки: ${r.folders}, ярлыки: ${r.shortcuts}`, `Desktop icons: ${r.clsid}, folders: ${r.folders}, shortcuts: ${r.shortcuts}`), 'ok');
+  else journal(T(`Стандартные значки возвращены (${r.restored})`, `Standard icons restored (${r.restored})`), 'ok');
   for (const e of r.errors || []) journal(e, 'warn');
 }
 
@@ -394,7 +424,7 @@ function scheduleIdleCheck() {
   clearTimeout(idleTimer);
   idleTimer = setTimeout(async () => {
     if (clients.size > 0 || busyServices()) return;
-    journal('Окно лаунчера закрыто и агент не работает — выключаюсь');
+    journal(T('Окно лаунчера закрыто и агент не работает — выключаюсь', 'Launcher window closed and the agent is not running — shutting down'));
     if (models.activeStatus() !== 'off') await models.stop(true);
     process.exit(0);
   }, 10000);
@@ -415,6 +445,7 @@ function snapshot() {
     telegram: telegram.state(),
     agent: { ...S.agent, theme: themeEnabled() },
     win: { ...S.win, applied: fs.existsSync(winStyleBackup) },
+    lang: i18n.lang(),
     meta: { accent: cfgAccent, root: ROOT },
   };
 }
@@ -491,12 +522,13 @@ const ACTIONS = {
   },
   'win/apply': () => winStyle('apply'),
   'win/restore': () => winStyle('restore'),
-  'tool/blender': () => { cp.spawn('cmd.exe', ['/c', P.blender], { detached: true, stdio: 'ignore', windowsHide: true }).unref(); journal('Blender запускается вместе с MCP-сервером'); },
+  'tool/blender': () => { cp.spawn('cmd.exe', ['/c', P.blender], { detached: true, stdio: 'ignore', windowsHide: true }).unref(); journal(T('Blender запускается вместе с MCP-сервером', 'Starting Blender with its MCP server')); },
   'tool/open': (b) => {
     const map = { root: ROOT, models: P.models, projects: P.projects, logs: P.data, docs: P.docs, hud: P.hudDir, agent: path.join(ROOT, 'agent', 'home') };
     if (map[b.what]) openPath(map[b.what]);
   },
-  'shutdown': async () => { await agentStop(); await models.stop(true); if (comfy.running()) await comfy.stop(); await telegram.stop(true); journal('Агент и модель отключены'); },
+  'shutdown': async () => { await agentStop(); await models.stop(true); if (comfy.running()) await comfy.stop(); await telegram.stop(true); journal(T('Агент и модель отключены', 'Agent and model shut down')); },
+  'settings/lang': (b) => setLang(String(b.lang)),
   'ui/open': () => openLauncherWindow(),
 };
 
@@ -554,10 +586,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Static UI.
+  // Static UI. The page is served in the current language (no flash of the other one on load).
   let rel = url.pathname === '/' ? 'index.html' : decodeURIComponent(url.pathname.slice(1));
   const file = path.join(P.ui, rel);
   if (!file.startsWith(P.ui) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) { res.writeHead(404); return res.end(); }
+  if (rel === 'index.html') {
+    res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
+    return res.end(fs.readFileSync(file, 'utf8').replace('<html lang="ru">', `<html lang="${i18n.lang()}">`));
+  }
   res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' });
   fs.createReadStream(file).pipe(res);
 });
@@ -573,14 +609,20 @@ server.on('error', (e) => {
 });
 
 server.listen(PORT, '127.0.0.1', async () => {
-  journal('J.A.R.V.I.S. запущен');
+  journal(T('J.A.R.V.I.S. запущен', 'J.A.R.V.I.S. started'));
   S.hw = await detectHardware(run, path.dirname(P.llama));
-  journal(`Железо: ${S.hw.gpu ? `${S.hw.gpu.name} ${Math.round(S.hw.gpu.vramMB / 1024)} ГБ` : 'без дискретной видеокарты'}, ОЗУ ${Math.round(S.hw.ramMB / 1024)} ГБ, движок ${S.hw.engine.toUpperCase()}`);
+  const gpuText = S.hw.gpu ? `${S.hw.gpu.name} ${Math.round(S.hw.gpu.vramMB / 1024)} ${T('ГБ', 'GB')}` : T('без дискретной видеокарты', 'no discrete GPU');
+  journal(T(`Железо: ${gpuText}, ОЗУ ${Math.round(S.hw.ramMB / 1024)} ГБ, движок ${S.hw.engine.toUpperCase()}`,
+    `Hardware: ${gpuText}, RAM ${Math.round(S.hw.ramMB / 1024)} GB, engine ${S.hw.engine.toUpperCase()}`));
   models.syncHarness();
-  try { for (const name of applyFixes(ROOT)) journal('Исправлено: ' + name + ' (перезапустите агента)', 'ok'); }
-  catch (e) { journal('Исправления плагинов: ' + e.message, 'warn'); }
+  try { for (const name of applyFixes(ROOT)) journal(T('Исправлено: ', 'Fixed: ') + name + T(' (перезапустите агента)', ' (restart the agent)'), 'ok'); }
+  catch (e) { journal(T('Исправления плагинов: ', 'Plugin fixes: ') + e.message, 'warn'); }
+  try { applyAgentLang(ROOT, i18n.lang()); } catch (e) { journal('Language: ' + e.message, 'warn'); }
   await adoptExisting();
   await comfy.adopt();
+  // Language switched while the launcher was closed (installer, settings file): restart a running HUD in it.
+  await procTick();
+  try { if (syncHudLang() && S.hud.running && fs.existsSync(P.hudExe)) { await hudStop(true); await new Promise((r) => setTimeout(r, 700)); hudStart(); } } catch {}
   hudAutostartRead();
   procTick(); gpuTick();
   if (fs.existsSync(previewFile)) S.hud.previewAt = fs.statSync(previewFile).mtimeMs;
@@ -597,4 +639,4 @@ server.listen(PORT, '127.0.0.1', async () => {
   setTimeout(() => { if (clients.size === 0) scheduleIdleCheck(); }, 60000);
 });
 
-process.on('uncaughtException', (e) => journal('Сбой: ' + (e.stack || e), 'error'));
+process.on('uncaughtException', (e) => journal(T('Сбой: ', 'Crash: ') + (e.stack || e), 'error'));

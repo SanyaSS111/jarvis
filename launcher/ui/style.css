@@ -72,6 +72,9 @@ button { font: inherit; color: inherit; }
 .clock { text-align: right; }
 .clock b { display: block; font-size: 22px; font-weight: 500; letter-spacing: .12em; font-variant-numeric: tabular-nums; color: rgb(var(--acc)); }
 .clock span { font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: var(--steel); }
+.lang-seg { flex: none; }
+.lang-seg button { flex: none; padding: 5px 8px; font-size: 11px; }
+.lang-wide { margin-bottom: 8px; }
 .power {
   width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
   background: rgba(255, 95, 86, .06); border: 1px solid rgba(255, 95, 86, .5); color: var(--red);

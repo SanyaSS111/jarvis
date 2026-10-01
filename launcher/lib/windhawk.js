@@ -5,6 +5,8 @@
 // and modConfigUtils.ts in v1.7.3): compile the mod with the bundled clang, copy the runtime libs,
 // write AppData\Engine\Mods\<id>.ini (UTF-16LE). The running Windhawk picks changes up by itself.
 'use strict';
+const { T } = require('./i18n');
+const lbl = (o) => (Array.isArray(o.label) ? T(...o.label) : o.label);
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
@@ -18,15 +20,15 @@ const TARGET = 'x86_64-w64-mingw32';
 
 // Parts of Windows the launcher can restyle: mod id + theme file in docs\.
 const MODS = {
-  taskbar: { id: 'windows-11-taskbar-styler', theme: 'taskbar-jarvis.yaml', label: 'Панель задач' },
-  start: { id: 'windows-11-start-menu-styler', theme: 'start-jarvis.yaml', label: 'Меню «Пуск»' },
-  notifications: { id: 'windows-11-notification-center-styler', theme: 'notifications-jarvis.yaml', label: 'Центр уведомлений' },
-  explorer: { id: 'windows-11-file-explorer-styler', theme: 'explorer-jarvis.yaml', label: 'Проводник' },
+  taskbar: { id: 'windows-11-taskbar-styler', theme: 'taskbar-jarvis.yaml', label: ['Панель задач', 'Taskbar'] },
+  start: { id: 'windows-11-start-menu-styler', theme: 'start-jarvis.yaml', label: ['Меню «Пуск»', 'Start menu'] },
+  notifications: { id: 'windows-11-notification-center-styler', theme: 'notifications-jarvis.yaml', label: ['Центр уведомлений', 'Notification center'] },
+  explorer: { id: 'windows-11-file-explorer-styler', theme: 'explorer-jarvis.yaml', label: ['Проводник', 'File Explorer'] },
   // Our own mod (launcher\mods): navy title bars, cyan border, light caption text for every window.
-  windows: { id: 'jarvis-window-colors', local: true, label: 'Окна (заголовки и рамки)',
+  windows: { id: 'jarvis-window-colors', local: true, label: ['Окна (заголовки и рамки)', 'Windows (title bars and borders)'],
     settings: { darkMode: 1, activeCaption: '#0A1B25', inactiveCaption: '#06111A', activeBorder: '#5CE1FF',
       inactiveBorder: '#1E4A58', activeText: '#CFF6FF', inactiveText: '#7C9DB0' } },
-  settings: { id: 'windows-11-settings-styler', theme: 'settings-jarvis.yaml', label: 'Параметры Windows' },
+  settings: { id: 'windows-11-settings-styler', theme: 'settings-jarvis.yaml', label: ['Параметры Windows', 'Windows Settings'] },
   alttab: { id: 'simple-window-switcher', label: 'Alt+Tab',
     settings: {
       'Style.theme': 'backdrop', 'Style.colorScheme': 'dark', 'Style.highlightStyle': 'fillAndBorder', 'Style.opacity': 92,
@@ -146,14 +148,14 @@ function createWindhawk({ root, run, journal }) {
       const m = readIni(modIni(mod)).Mod || {};
       const dll = m.LibraryFileName && path.join(storage().appData, 'Engine', 'Mods', '64', m.LibraryFileName);
       const installed = !!(dll && fs.existsSync(dll));
-      return { label: mod.label, installed, enabled: installed && m.Disabled !== '1', version: m.Version || null };
-    } catch { return { label: mod.label, installed: false, enabled: false, version: null }; }
+      return { label: lbl(mod), installed, enabled: installed && m.Disabled !== '1', version: m.Version || null };
+    } catch { return { label: lbl(mod), installed: false, enabled: false, version: null }; }
   }
 
   async function status() {
     const installed = engineInstalled();
     const mods = {};
-    for (const [key, mod] of Object.entries(MODS)) mods[key] = installed ? modStatus(mod) : { label: mod.label, installed: false, enabled: false };
+    for (const [key, mod] of Object.entries(MODS)) mods[key] = installed ? modStatus(mod) : { label: lbl(mod), installed: false, enabled: false };
     let autorun = false;
     if (installed) autorun = (await run('reg.exe', ['query', RUN_KEY, '/v', RUN_VALUE])).stdout.includes('windhawk.exe');
     return { installed, running: installed && (await running()), autorun, mods, step: state.step, error: state.error };
@@ -162,22 +164,22 @@ function createWindhawk({ root, run, journal }) {
   async function download(url, file) {
     const curl = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'curl.exe');
     const r = await run(curl, ['-L', '--fail', '-s', '-S', '--retry', '3', '-o', file, url], { timeout: 900000 });
-    if (r.err || !fs.existsSync(file)) throw new Error(`Не удалось скачать ${url}: ${(r.stderr || (r.err && r.err.message) || '').trim()}`);
+    if (r.err || !fs.existsSync(file)) throw new Error(T('Не удалось скачать ', 'Could not download ') + `${url}: ${(r.stderr || (r.err && r.err.message) || '').trim()}`);
   }
 
   async function installEngine() {
-    state.step = `Скачиваю Windhawk ${WH_VERSION} (≈140 МБ)…`;
+    state.step = T(`Скачиваю Windhawk ${WH_VERSION} (≈140 МБ)…`, `Downloading Windhawk ${WH_VERSION} (≈140 MB)…`);
     const setup = path.join(root, 'data', 'launcher', 'windhawk_setup_offline.exe');
     fs.mkdirSync(path.dirname(setup), { recursive: true });
     await download(SETUP_URL, setup);
-    state.step = 'Устанавливаю Windhawk в C:\\LLM\\tools\\windhawk (портативно)…';
+    state.step = T('Устанавливаю Windhawk в C:\\LLM\\tools\\windhawk (портативно)…', 'Installing Windhawk to C:\\LLM\\tools\\windhawk (portable)…');
     // NSIS: /S silent, /PORTABLE, /D must be the last argument and unquoted.
     await new Promise((resolve) => {
       const p = cp.spawn(setup, ['/S', '/PORTABLE', `/D=${dir}`], { windowsHide: true, stdio: 'ignore' });
       p.on('exit', resolve); p.on('error', resolve);
     });
     try { fs.unlinkSync(setup); } catch {}
-    if (!fs.existsSync(exe)) throw new Error('Установщик Windhawk не создал windhawk.exe');
+    if (!fs.existsSync(exe)) throw new Error(T('Установщик Windhawk не создал windhawk.exe', 'The Windhawk installer did not create windhawk.exe'));
   }
 
   async function installMod(mod) {
@@ -185,12 +187,12 @@ function createWindhawk({ root, run, journal }) {
     const srcFile = path.join(st.appData, 'ModsSource', `${mod.id}.wh.cpp`);
     fs.mkdirSync(path.dirname(srcFile), { recursive: true });
     if (mod.local) fs.copyFileSync(path.join(__dirname, '..', 'mods', `${mod.id}.wh.cpp`), srcFile);
-    else { state.step = `${mod.label}: скачиваю мод…`; await download(MODS_URL + mod.id + '.wh.cpp', srcFile); }
+    else { state.step = `${lbl(mod)}: ` + T('скачиваю мод…', 'downloading the mod…'); await download(MODS_URL + mod.id + '.wh.cpp', srcFile); }
     const src = fs.readFileSync(srcFile, 'utf8');
     const h = modHeader(src);
-    if (h.id !== mod.id || !h.version) throw new Error(`${mod.label}: не удалось прочитать заголовок мода`);
+    if (h.id !== mod.id || !h.version) throw new Error(`${lbl(mod)}: ` + T('не удалось прочитать заголовок мода', 'could not read the mod header'));
 
-    state.step = `${mod.label}: компилирую мод ${h.version} (1–3 минуты)…`;
+    state.step = `${lbl(mod)}: ` + T(`компилирую мод ${h.version} (1–3 минуты)…`, `compiling mod ${h.version} (1–3 minutes)…`);
     const modsDir = path.join(st.appData, 'Engine', 'Mods', '64');
     fs.mkdirSync(modsDir, { recursive: true });
     const dllName = `${mod.id}_${h.version}_${100000 + Math.floor(Math.random() * 900000)}.dll`;
@@ -208,7 +210,7 @@ function createWindhawk({ root, run, journal }) {
       p.on('error', (e) => resolve({ code: -1, err: e.message }));
       p.stdin.end(src);
     });
-    if (result.code !== 0) throw new Error(`${mod.label}: мод не скомпилировался:\n` + result.err.split(/\r?\n/).slice(-8).join('\n'));
+    if (result.code !== 0) throw new Error(`${lbl(mod)}: ` + T('мод не скомпилировался:\n', 'the mod did not compile:\n') + result.err.split(/\r?\n/).slice(-8).join('\n'));
 
     // Runtime libraries the compiled mods link against.
     const libs = path.join(st.compiler, TARGET, 'bin');
@@ -217,7 +219,7 @@ function createWindhawk({ root, run, journal }) {
       if (fs.existsSync(s) && !fs.existsSync(d)) { try { fs.copyFileSync(s, d); } catch {} }
     }
 
-    state.step = `${mod.label}: применяю тему Джарвиса…`;
+    state.step = `${lbl(mod)}: ` + T('применяю тему Джарвиса…', 'applying the Jarvis theme…');
     let old = {};
     try { old = readIni(modIni(mod)); } catch {}
     const previousDll = old.Mod && old.Mod.LibraryFileName;
@@ -244,26 +246,26 @@ function createWindhawk({ root, run, journal }) {
       const list = keys && keys.length ? keys.filter((k) => MODS[k]) : Object.keys(MODS).filter((k) => !modStatus(MODS[k]).installed);
       for (const key of list) {
         await installMod(MODS[key]);
-        journal(`${MODS[key].label}: тема Джарвиса установлена`, 'ok');
+        journal(`${lbl(MODS[key])}: ` + T('тема Джарвиса установлена', 'Jarvis theme installed'), 'ok');
       }
-      if (!(await running())) { state.step = 'Запускаю Windhawk…'; start(); }
+      if (!(await running())) { state.step = T('Запускаю Windhawk…', 'Starting Windhawk…'); start(); }
     } catch (e) {
       state.error = String(e.message || e);
-      journal('Оформление Windows: ' + state.error, 'error');
+      journal(T('Оформление Windows: ', 'Windows look: ') + state.error, 'error');
     } finally { state.step = null; }
   }
 
   // On/off: the running engine sees the Disabled flag and restores the stock look.
   async function setEnabled(key, on) {
     const mod = MODS[key];
-    if (!mod) throw new Error('Неизвестная часть Windows');
+    if (!mod) throw new Error(T('Неизвестная часть Windows', 'Unknown Windows part'));
     const data = readIni(modIni(mod));
-    if (!data.Mod) throw new Error(`${mod.label}: мод не установлен`);
+    if (!data.Mod) throw new Error(`${lbl(mod)}: ` + T('мод не установлен', 'the mod is not installed'));
     data.Mod.Disabled = on ? 0 : 1;
     data.Mod.SettingsChangeTime = now32();
     writeIni(modIni(mod), data);
     if (on && !(await running())) start();
-    journal(`${mod.label}: ${on ? 'тема Джарвиса включена' : 'стандартный вид'}`);
+    journal(`${lbl(mod)}: ${on ? T('тема Джарвиса включена', 'Jarvis theme on') : T('стандартный вид', 'standard look')}`);
   }
 
   // Re-read docs\*-jarvis.yaml into the mod settings (after editing a theme).
@@ -279,19 +281,19 @@ function createWindhawk({ root, run, journal }) {
       data.Mod.SettingsChangeTime = now32();
       writeIni(modIni(mod), data);
     }
-    journal('Оформление Windows: темы перечитаны');
+    journal(T('Оформление Windows: темы перечитаны', 'Windows look: themes reloaded'));
   }
 
   // Called when the launcher opens: bring the themes back if Windhawk isn't running.
   async function ensureRunning() {
     const s = await status();
-    if (s.installed && !s.running && Object.values(s.mods).some((m) => m.enabled)) { start(); journal('Windhawk запущен — оформление Windows активно'); }
+    if (s.installed && !s.running && Object.values(s.mods).some((m) => m.enabled)) { start(); journal(T('Windhawk запущен — оформление Windows активно', 'Windhawk started — the Windows look is active')); }
   }
 
   async function setAutostart(on) {
     if (on) await run('reg.exe', ['add', RUN_KEY, '/v', RUN_VALUE, '/t', 'REG_SZ', '/d', `"${exe}" -tray-only`, '/f']);
     else await run('reg.exe', ['delete', RUN_KEY, '/v', RUN_VALUE, '/f']);
-    journal(on ? 'Windhawk будет запускаться вместе с Windows' : 'Автозапуск Windhawk выключен');
+    journal(on ? T('Windhawk будет запускаться вместе с Windows', 'Windhawk will start with Windows') : T('Автозапуск Windhawk выключен', 'Windhawk autostart is off'));
   }
 
   return { status, install, setEnabled, setAutostart, ensureRunning, reloadTheme,

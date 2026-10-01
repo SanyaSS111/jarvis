@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use crate::autostart;
 use crate::win32::*;
+use crate::lang::tr;
 
 const WM_TRAY: u32 = 0x0400 + 1; // WM_APP + 1
 const ID_SETUP: u32 = 1;
@@ -124,11 +125,11 @@ unsafe extern "system" fn tray_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam
 unsafe fn show_menu(hwnd: HWND) {
     unsafe {
         let menu = CreatePopupMenu();
-        AppendMenuW(menu, MF_STRING, ID_SETUP as usize, wide("Настройки…").as_ptr());
+        AppendMenuW(menu, MF_STRING, ID_SETUP as usize, wide(tr("Настройки…", "Settings…")).as_ptr());
         let autostart_flags = MF_STRING | if autostart::is_enabled() { MF_CHECKED } else { 0 };
-        AppendMenuW(menu, autostart_flags, ID_AUTOSTART as usize, wide("Запускать с Windows").as_ptr());
+        AppendMenuW(menu, autostart_flags, ID_AUTOSTART as usize, wide(tr("Запускать с Windows", "Start with Windows")).as_ptr());
         AppendMenuW(menu, MF_SEPARATOR, 0, ptr::null());
-        AppendMenuW(menu, MF_STRING, ID_QUIT as usize, wide("Выход").as_ptr());
+        AppendMenuW(menu, MF_STRING, ID_QUIT as usize, wide(tr("Выход", "Exit")).as_ptr());
 
         let mut point = POINT::default();
         GetCursorPos(&mut point);

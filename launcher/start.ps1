@@ -1,4 +1,4 @@
-# Desktop shortcut entry point: starts the J.A.R.V.I.S. launcher server hidden
+﻿# Desktop shortcut entry point: starts the J.A.R.V.I.S. launcher server hidden
 # (or, if it already runs, just brings its window back).
 # -SetupLook / -SetupIcons: sent by the installer on the first start to set up the chosen Windows look.
 param([switch]$SetupLook, [switch]$SetupIcons)
@@ -19,7 +19,9 @@ if (Ping) {
 } else {
   if (-not $node) {
     Add-Type -AssemblyName PresentationFramework
-    [System.Windows.MessageBox]::Show("Не найден Node.js. Переустановите J.A.R.V.I.S.", 'J.A.R.V.I.S.', 'OK', 'Error') | Out-Null
+    $ru = $false; try { $ru = (Get-Content (Join-Path $data 'settings.json') -Raw -Encoding UTF8 | ConvertFrom-Json).lang -eq 'ru' } catch {}
+    $msg = if ($ru) { "Не найден Node.js. Переустановите J.A.R.V.I.S." } else { "Node.js was not found. Reinstall J.A.R.V.I.S." }
+    [System.Windows.MessageBox]::Show($msg, 'J.A.R.V.I.S.', 'OK', 'Error') | Out-Null
     exit 1
   }
   Start-Process -FilePath $node -ArgumentList "`"$here\server.js`"" -WorkingDirectory $here -WindowStyle Hidden `
