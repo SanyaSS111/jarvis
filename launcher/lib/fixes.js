@@ -24,6 +24,16 @@ const FIXES = [
     from: "if (typoLive && value && typeof formatInputLive === 'function') {",
     to: "if (typoLive && value && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') && typeof formatInputLive === 'function') {",
   },
+  {
+    // Same plugin, "russian-lang.enabled follows the active language": while a page loads, before the stored
+    // language is read, the core shows the browser's language (ru on a Russian Windows). The sync wrote
+    // enabled: true then, and the next load switched the agent to Russian whatever the launcher had chosen.
+    // Sync only once the core has an explicit preference.
+    name: 'dsh-russian-lang: язык при загрузке окна не перезаписывает выбор',
+    file: ['agent', 'home', 'profiles', 'web', 'node_modules', '@goodandready', 'dsh-russian-lang', 'lib', 'client.js'],
+    from: "const wantRu = runtime.getLocale().active === 'ru'",
+    to: "if (runtime.preference === undefined) return\n          const wantRu = runtime.getLocale().active === 'ru'",
+  },
 ];
 
 // Returns the names of fixes applied now (already-fixed files are left alone).
@@ -33,7 +43,8 @@ function applyFixes(root) {
     const file = path.join(root, ...f.file);
     let text;
     try { text = fs.readFileSync(file, 'utf8'); } catch { continue; }
-    if (!text.includes(f.from)) continue;
+    // Already fixed (a replacement may contain the original line) or a plugin version without that line.
+    if (text.includes(f.to) || !text.includes(f.from)) continue;
     fs.writeFileSync(file, text.split(f.from).join(f.to));
     applied.push(f.name);
   }

@@ -79,6 +79,11 @@ try {
   applyAgentLang(root, lang, notes);
   for (const n of notes) console.log('  • ' + n);
 } catch (e) { say('Не удалось проверить настройки агента: ' + e.message, 'Could not check the agent settings: ' + e.message); }
+// Plugin fixes the launcher applies at start: now, so the next agent start already has them.
+try {
+  const fixes = path.join(root, 'launcher', 'lib', 'fixes.js');
+  if (fs.existsSync(fixes)) for (const name of require(fixes).applyFixes(root)) console.log('  • ' + name);
+} catch (e) {}
 
 try {
   const ij = path.join(root, 'install.json');

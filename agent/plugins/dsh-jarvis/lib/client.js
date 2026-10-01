@@ -398,12 +398,14 @@ window.__ModuleLoader__.load({
     const FRAME_ID = 'dsh-jarvis-frame'
     let themeTimer = null
     let localeRuntime = null
+    let stableLang = 0 // polls in a row the window has shown the launcher's language
 
     // The launcher's language → this window, once per switch in the launcher (stamp = time of the switch).
     // The window keeps its own last language and writes it back to the settings on load (the Russian UI
     // plugin follows it), which would undo the launcher's switch. A language picked later in the agent's
-    // own menu is left alone until the launcher switches again. The stamp is stored only once the window
-    // really shows the language, so a plugin that switches it back at boot gets corrected on the next poll.
+    // own menu is left alone until the launcher switches again. The stamp is stored only after the window
+    // has shown the language for three polls in a row: right after load the core or the Russian UI plugin
+    // may still switch it (e.g. to the system language), and that gets corrected meanwhile.
     function syncUiLang(lang, stamp) {
       if (!localeRuntime || (lang !== 'ru' && lang !== 'en')) return
       const key = lang + '@' + (stamp || 'initial')
@@ -412,7 +414,11 @@ window.__ModuleLoader__.load({
       if (applied === key) return
       try {
         const st = localeRuntime.getLocale()
-        if (st.active === lang) { try { localStorage.setItem('jarvis-ui-lang', key) } catch (e) {} return }
+        if (st.active === lang) {
+          if (++stableLang >= 3) { try { localStorage.setItem('jarvis-ui-lang', key) } catch (e) {} }
+          return
+        }
+        stableLang = 0
         if (!st.locales.some((l) => l.id === lang)) return // "ru" appears once the Russian UI plugin is up
         localeRuntime.setLocale(lang)
       } catch (e) { /* locale runtime not ready yet */ }
