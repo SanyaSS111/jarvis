@@ -10,7 +10,6 @@ $repo = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 # ------------------------------------------------------------------ allowlist (paths relative to C:\LLM)
 $files = @(
-  'README.md',
   'launcher\server.js', 'launcher\start.ps1',
   'launcher\lib\*.js', 'launcher\ui\*.html', 'launcher\ui\*.css', 'launcher\ui\*.js', 'launcher\ui\*.svg',
   'launcher\mods\*.wh.cpp', 'launcher\tools\*.ps1', 'launcher\icons\**',
@@ -27,8 +26,9 @@ $files = @(
   'docs\*.yaml', 'docs\*.md',
   'hud\src\**', 'hud\tools\**', 'hud\Cargo.toml', 'hud\Cargo.lock', 'hud\build.bat', 'hud\jarvis2.ico'
 )
-# Outside C:\LLM: the agent's access rules (repo path => live path).
-$extra = @{ 'agent\rules.yaml' = 'C:\Projects\.dsh\rules.yaml' }
+# Mapped paths (repo path => live path): the agent's access rules outside C:\LLM, and the working install's own
+# README (its folder layout) — the repo's README.md is the GitHub page and is edited here, not synced.
+$extra = @{ 'agent\rules.yaml' = 'C:\Projects\.dsh\rules.yaml'; 'docs\УСТРОЙСТВО.md' = "$Live\README.md" }
 # Folders this script owns in the repo (files there that are no longer in the allowlist get removed).
 $managed = 'launcher', 'agent', 'tools', 'installer', 'docs', 'hud'
 
