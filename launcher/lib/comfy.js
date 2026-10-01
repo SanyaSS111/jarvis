@@ -222,6 +222,11 @@ function createComfy({ root, run, killTree, listeningPid, httpGet, journal, getH
     // Cards without bf16 (GTX 10xx/9xx, Volta, RTX 20xx) decode in fp16, which overflows in the Qwen/Wan VAE:
     // green/purple blotches and black squares. fp32 there costs almost nothing (the VAE is small).
     if (!info.cpu && hw.gpu && (info.variant === 'nvidia_cu126' || /RTX\s*20\d\d/i.test(hw.gpu.name))) args.push('--fp32-vae');
+    // "Windows fatal exception: access violation" while loading or unloading models = the commit limit (RAM +
+    // page file) ran out. ComfyUI pins ~40% of RAM by default (6.5 GB of 16): on PCs with ≤ 32 GB that pinned
+    // block plus an 8.7 GB text encoder plus a GGUF model is more than Windows will give. Pinning off.
+    // (Don't pass --disable-dynamic-vram: with GGUF models that crashes right at the first load.)
+    if (!info.cpu && (!hw.ramMB || hw.ramMB <= 32768)) args.push('--disable-pinned-memory');
     // Appended, not overwritten: after a crash and restart the reason must still be in the log.
     const logFile = path.join(dataDir, 'comfyui.log');
     try { if (fs.statSync(logFile).size > 5 * 1048576) fs.renameSync(logFile, logFile + '.old'); } catch {}

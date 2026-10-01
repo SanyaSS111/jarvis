@@ -128,7 +128,10 @@ async function ensureComfy(log) {
     const args = ['-s', path.join(COMFY_DIR, 'ComfyUI', 'main.py'), '--windows-standalone-build', '--listen', '127.0.0.1', '--port', '8188',
       '--disable-auto-launch', '--output-directory', OUTPUT, ...(info.cpu ? ['--cpu'] : []),
       // no-bf16 cards: fp16 VAE overflows (blotches, black squares) — same flag the launcher uses
-      ...(!info.cpu && info.variant === 'nvidia_cu126' ? ['--fp32-vae'] : [])];
+      ...(!info.cpu && info.variant === 'nvidia_cu126' ? ['--fp32-vae'] : []),
+      // pinned RAM (40% of it) + text encoder + GGUF model exceed the commit limit on ≤ 32 GB PCs → access
+      // violation; same flag the launcher uses
+      ...(!info.cpu && require('os').totalmem() <= 34 * 2 ** 30 ? ['--disable-pinned-memory'] : [])];
     const logFile = path.join(ROOT, 'data', 'comfyui', 'comfyui.log');
     fs.appendFileSync(logFile, `\n===== ${new Date().toISOString()} запуск ComfyUI (фоном, без лаунчера) =====\n`);
     const out = fs.openSync(logFile, 'a');
@@ -279,9 +282,16 @@ async function runGraph(build, label, log) {
   if (q.status !== 200) throw new Error('ComfyUI отклонил задание: ' + q.body.slice(0, 600));
   const id = JSON.parse(q.body).prompt_id;
   log(label);
+  let down = 0;
   for (;;) {
     await sleep(3000);
     const h = await request(COMFY + '/history/' + id);
+    // ComfyUI died mid-job: say so at once instead of waiting out the 30 minutes.
+    if (h.status === 0) {
+      if (++down >= 5) throw new Error('ComfyUI упал во время работы. Лог: ' + path.join(ROOT, 'data', 'comfyui', 'comfyui.log') + ' — попробуй ещё раз (он запустится заново).');
+      continue;
+    }
+    down = 0;
     let item = null;
     try { item = JSON.parse(h.body)[id]; } catch {}
     if (!item) {
