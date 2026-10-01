@@ -172,7 +172,7 @@ namespace Jarvis
         public const string PlaywrightMcp = "@playwright/mcp@0.0.81";
         public const string WindowsMcp = "windows-mcp@0.8.5";
         public const string BlenderMcp = "blender-mcp@1.9.1";
-        public const string Version = "1.0";
+        public const string Version = "1.1";
     }
 
     public class App
