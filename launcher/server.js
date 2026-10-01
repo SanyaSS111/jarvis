@@ -338,7 +338,9 @@ function syncHudLang() {
 async function setLang(l) {
   if (l === i18n.lang()) return;
   i18n.set(l);
-  const changed = applyAgentLang(ROOT, l);
+  const notes = [];
+  const changed = applyAgentLang(ROOT, l, notes);
+  for (const n of notes) journal(n, 'warn');
   journal(T('Язык: русский', 'Language: English'), 'ok');
   if (changed.length && S.agent.status === 'on') journal(T('Перезапустите агента, чтобы он перешёл на русский', 'Restart the agent to switch it to English'), 'warn');
   if (syncHudLang() && S.hud.running && fs.existsSync(P.hudExe)) {
@@ -638,7 +640,7 @@ server.listen(PORT, '127.0.0.1', async () => {
   engines.check().catch((e) => journal('Engines: ' + e.message, 'warn'));
   try { for (const name of applyFixes(ROOT)) journal(T('Исправлено: ', 'Fixed: ') + name + T(' (перезапустите агента)', ' (restart the agent)'), 'ok'); }
   catch (e) { journal(T('Исправления плагинов: ', 'Plugin fixes: ') + e.message, 'warn'); }
-  try { applyAgentLang(ROOT, i18n.lang()); } catch (e) { journal('Language: ' + e.message, 'warn'); }
+  try { const notes = []; applyAgentLang(ROOT, i18n.lang(), notes); for (const n of notes) journal(n, 'warn'); } catch (e) { journal('Language: ' + e.message, 'warn'); }
   await adoptExisting();
   await comfy.adopt();
   // Language switched while the launcher was closed (installer, settings file): restart a running HUD in it.

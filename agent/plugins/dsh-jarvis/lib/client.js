@@ -397,6 +397,25 @@ window.__ModuleLoader__.load({
     const THEME_LINK_ID = 'dsh-jarvis-theme-css'
     const FRAME_ID = 'dsh-jarvis-frame'
     let themeTimer = null
+    let localeRuntime = null
+
+    // The launcher's language → this window, once per change of the launcher setting. The window keeps
+    // its own last language and writes it back to the settings on load (the Russian UI plugin follows it),
+    // which would undo the launcher's switch. A language picked later in the agent's own menu is left
+    // alone until the launcher's setting changes again. "Applied" is stored only once the window really
+    // shows the language, so a plugin that switches it back at boot gets corrected on the next poll.
+    function syncUiLang(lang) {
+      if (!localeRuntime || (lang !== 'ru' && lang !== 'en')) return
+      let applied = null
+      try { applied = localStorage.getItem('jarvis-ui-lang') } catch (e) {}
+      if (applied === lang) return
+      try {
+        const st = localeRuntime.getLocale()
+        if (st.active === lang) { try { localStorage.setItem('jarvis-ui-lang', lang) } catch (e) {} return }
+        if (!st.locales.some((l) => l.id === lang)) return // "ru" appears once the Russian UI plugin is up
+        localeRuntime.setLocale(lang)
+      } catch (e) { /* locale runtime not ready yet */ }
+    }
 
     function ensureThemeAssets() {
       if (!document.getElementById(THEME_LINK_ID)) {
@@ -433,7 +452,7 @@ window.__ModuleLoader__.load({
       try {
         const r = await fetch('/dsh-jarvis/theme', { cache: 'no-store' })
         const j = await r.json()
-        if (j && j.ok) { if (j.lang === 'ru' || j.lang === 'en') LANG = j.lang; applyTheme(j) }
+        if (j && j.ok) { if (j.lang === 'ru' || j.lang === 'en') { LANG = j.lang; syncUiLang(j.lang) } applyTheme(j) }
       } catch (e) { /* server restarting — keep the current look */ }
     }
 
@@ -443,9 +462,10 @@ window.__ModuleLoader__.load({
       themeTimer = setInterval(syncTheme, 4000)
     }
 
-    exports.inject = ['slots']
+    exports.inject = ['slots', 'locale']
     exports.apply = function apply(ctx) {
       ensureStyle()
+      localeRuntime = ctx.locale || null
       startTheme()
       ctx.slots.inject('conversation.input.right', () => ctx.slots.register(
         { name: 'conversation.input.right', id: 'dsh-jarvis', order: 1, label: () => L('Джарвис', 'Jarvis') },
