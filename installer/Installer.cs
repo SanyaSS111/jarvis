@@ -199,6 +199,7 @@ namespace Jarvis
         // Interface language: English by default, Russian on request (the EN / RU buttons, /lang:ru).
         // The choice goes to data\launcher\settings.json — the launcher, agent, Telegram bot and HUD follow it.
         static bool ru;
+        bool langFromArgs;
         public static string L(string r, string e) { return ru ? r : e; }
         readonly List<Component> comps = new List<Component>();
         readonly StringBuilder logText = new StringBuilder();
@@ -221,6 +222,7 @@ namespace Jarvis
             Window.Closing += (s, e) => { if (busy) e.Cancel = true; };
             StartReactor(1.0);
             ru = args.Any(a => a.Equals("/lang:ru", StringComparison.OrdinalIgnoreCase));
+            langFromArgs = args.Any(a => a.StartsWith("/lang:", StringComparison.OrdinalIgnoreCase));
             F<Button>("LangEn").Click += (s, e) => SetLang(false);
             F<Button>("LangRu").Click += (s, e) => SetLang(true);
             DetectHardware();
@@ -247,6 +249,9 @@ namespace Jarvis
             F<TextBlock>("Subtitle").Text = L("УСТАНОВКА", "SETUP") + " · JUST A RATHER VERY INTELLIGENT SYSTEM";
             F<TextBlock>("Intro").Text = L("Этот мастер установит J.A.R.V.I.S. — ИИ-агента с голосом Джарвиса, локальные модели, обои HUD и оформление Windows. Вы сами выберете, что ставить. Всё скачивается с официальных источников и проверяется по контрольным суммам.",
                 "This wizard installs J.A.R.V.I.S. — an AI agent with the Jarvis voice, local models, the HUD wallpaper and a Windows look. You choose what to install. Everything comes from official sources and is verified by checksums.");
+            if (existingRoot != null)
+                F<TextBlock>("Intro").Text += L("\n\nНайден установленный J.A.R.V.I.S. " + existingVersion + " в " + existingRoot + " — он будет обновлён, модели и настройки сохранятся.",
+                    "\n\nFound J.A.R.V.I.S. " + existingVersion + " in " + existingRoot + " — it will be updated, models and settings are kept.");
             F<TextBlock>("ScanTitle").Text = L("СКАНИРОВАНИЕ СИСТЕМЫ", "SYSTEM SCAN");
             F<Button>("WelcomeNext").Content = L("ДАЛЕЕ  →", "NEXT  →");
             F<TextBlock>("CompTitle").Text = L("ЧТО УСТАНОВИТЬ", "WHAT TO INSTALL");
@@ -407,6 +412,7 @@ namespace Jarvis
                 c.Box.Unchecked += OnCompUnchecked;
                 list.Children.Add(c.Box);
             }
+            DetectExisting();
             ApplyLang();
 
             F<Button>("WelcomeNext").Click += (s, e) => Show("PageComponents");
@@ -446,6 +452,111 @@ namespace Jarvis
 
         bool silent;
 
+        // ------------------------------------------------------------------ update over an existing install
+        string existingRoot, existingVersion;
+
+        // install.json of a folder: version and components, or null when J.A.R.V.I.S. is not installed there.
+        static Tuple<string, List<string>> ReadInstallJson(string dir)
+        {
+            try
+            {
+                string json = File.ReadAllText(Path.Combine(dir, "install.json"), Encoding.UTF8);
+                var v = System.Text.RegularExpressions.Regex.Match(json, "\"version\"\\s*:\\s*\"([^\"]*)\"");
+                var c = System.Text.RegularExpressions.Regex.Match(json, "\"components\"\\s*:\\s*\\[([^\\]]*)\\]");
+                var ids = c.Success ? System.Text.RegularExpressions.Regex.Matches(c.Groups[1].Value, "\"([^\"]+)\"").Cast<System.Text.RegularExpressions.Match>().Select(m => m.Groups[1].Value).ToList() : new List<string>();
+                return Tuple.Create(v.Success ? v.Groups[1].Value : "?", ids);
+            }
+            catch { return null; }
+        }
+
+        // The installed copy (from "Apps & features", else C:\JARVIS): the folder, its components and language
+        // become the defaults, so an update keeps what the person chose before.
+        void DetectExisting()
+        {
+            var places = new List<string>();
+            try { using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\JARVIS")) if (k != null) places.Add(k.GetValue("InstallLocation") as string); } catch { }
+            places.Add(@"C:\JARVIS");
+            foreach (var dir in places.Where(x => !string.IsNullOrEmpty(x)))
+            {
+                var info = ReadInstallJson(dir);
+                if (info == null) continue;
+                existingRoot = dir.TrimEnd('\\');
+                existingVersion = info.Item1;
+                F<TextBox>("FolderBox").Text = existingRoot;
+                if (info.Item2.Count > 0)
+                    foreach (var c in comps) c.Box.IsChecked = c.Required || info.Item2.Contains(c.Id);
+                F<CheckBox>("ShortcutBox").IsChecked = File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "J.A.R.V.I.S..lnk"));
+                // 1.0 had no language setting and was Russian-only.
+                if (!langFromArgs)
+                {
+                    string s = "";
+                    try { s = File.ReadAllText(Path.Combine(existingRoot, "data", "launcher", "settings.json"), Encoding.UTF8); } catch { }
+                    var m = System.Text.RegularExpressions.Regex.Match(s, "\"lang\"\\s*:\\s*\"(\\w+)\"");
+                    ru = m.Success ? m.Groups[1].Value == "ru" : true;
+                }
+                return;
+            }
+        }
+
+        // PID listening on a local TCP port (netstat), 0 when none.
+        static int ListeningPid(int port)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "netstat.exe"), "-ano -p TCP") { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true };
+                using (var p = Process.Start(psi))
+                {
+                    string output = p.StandardOutput.ReadToEnd();
+                    p.WaitForExit(5000);
+                    foreach (var line in output.Split('\n'))
+                    {
+                        var cols = line.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (cols.Length >= 5 && cols[3].Equals("LISTENING", StringComparison.OrdinalIgnoreCase) && cols[1].EndsWith(":" + port)) return int.Parse(cols[4]);
+                    }
+                }
+            }
+            catch { }
+            return 0;
+        }
+
+        static bool IsUnder(Process p, string dir)
+        {
+            try { return p.MainModule.FileName.StartsWith(dir.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase); } catch { return false; }
+        }
+
+        // Stops this install's processes: asks its launcher to shut the agent, models, ComfyUI and the bot down
+        // (only when the launcher on port 3190 runs from this folder — another J.A.R.V.I.S. may own the port),
+        // then ends whatever still runs from the folder. keepWindhawk: the Windows look stays on during an update.
+        // Returns the names of the stopped programs.
+        List<string> StopInstance(bool keepWindhawk)
+        {
+            var stopped = new List<string>();
+            if (!Directory.Exists(root)) return stopped;
+            int pid = ListeningPid(3190);
+            bool ours = false;
+            if (pid > 0) { try { using (var lp = Process.GetProcessById(pid)) ours = IsUnder(lp, root); } catch { } }
+            if (ours)
+            {
+                try { var r = WebRequest.Create("http://127.0.0.1:3190/api/shutdown"); r.Method = "POST"; r.Headers["X-Jarvis"] = "1"; r.ContentLength = 0; r.Timeout = 15000; r.GetResponse().Close(); } catch { }
+                Thread.Sleep(1500);
+            }
+            string windhawkDir = Path.Combine(root, "tools", "windhawk");
+            int me = Process.GetCurrentProcess().Id;
+            foreach (var p in Process.GetProcesses())
+            {
+                try
+                {
+                    if (p.Id == me || !IsUnder(p, root) || (keepWindhawk && IsUnder(p, windhawkDir))) continue;
+                    string name = p.ProcessName;
+                    p.Kill(); p.WaitForExit(5000);
+                    if (!stopped.Contains(name)) stopped.Add(name);
+                }
+                catch { }
+                finally { p.Dispose(); }
+            }
+            return stopped;
+        }
+
         bool IsOn(string id) { var c = comps.FirstOrDefault(x => x.Id == id); return c != null && c.Box.IsChecked == true; }
 
         void OnCompChecked(object sender, RoutedEventArgs e)
@@ -482,6 +593,12 @@ namespace Jarvis
                 if (p.Any(ch => ch > 127) || p.Contains(" ")) info += L("\nЛучше без пробелов и русских букв в пути — так надёжнее для всех инструментов.", "\nBetter without spaces or non-Latin letters in the path — more reliable for every tool.");
             }
             catch { info = L("Укажите полный путь, например C:\\JARVIS", "Enter a full path, for example C:\\JARVIS"); }
+            Tuple<string, List<string>> there = null;
+            try { there = ReadInstallJson(Path.GetFullPath(p)); } catch { }
+            if (there != null)
+                info += L("\nЗдесь уже стоит J.A.R.V.I.S. " + there.Item1 + " — он будет обновлён. Скачанные модели, ключ API, привязка Telegram и настройки агента сохранятся; запущенный J.A.R.V.I.S. остановится на время обновления.",
+                    "\nJ.A.R.V.I.S. " + there.Item1 + " is already here — it will be updated. Downloaded models, the API key, the Telegram pairing and the agent settings are kept; a running J.A.R.V.I.S. is stopped for the update.");
+            F<Button>("InstallBtn").Content = there != null ? L("ОБНОВИТЬ", "UPDATE") : L("УСТАНОВИТЬ", "INSTALL");
             F<TextBlock>("FolderInfo").Text = info;
         }
 
@@ -509,10 +626,16 @@ namespace Jarvis
             var failures = new List<string>();
             try
             {
+                var previous = ReadInstallJson(root);
+                prevComponents = previous != null ? previous.Item2 : new List<string>();
                 Directory.CreateDirectory(root);
                 Directory.CreateDirectory(Path.Combine(root, "data", "launcher"));
                 logFile = new StreamWriter(Path.Combine(root, "data", "launcher", "install.log"), true, new UTF8Encoding(false));
-                Log(L("Установка J.A.R.V.I.S. ", "Installing J.A.R.V.I.S. ") + Src.Version + L(" в ", " to ") + root + L(" · компоненты: ", " · components: ") + string.Join(", ", sel) + " · lang: " + (ru ? "ru" : "en"));
+                Log((previous != null ? L("Обновление J.A.R.V.I.S. " + previous.Item1 + " → ", "Updating J.A.R.V.I.S. " + previous.Item1 + " → ") : L("Установка J.A.R.V.I.S. ", "Installing J.A.R.V.I.S. ")) +
+                    Src.Version + L(" в ", " in ") + root + L(" · компоненты: ", " · components: ") + string.Join(", ", sel) + " · lang: " + (ru ? "ru" : "en"));
+                // Files of a running copy are in use (HUD exe) and its launcher would keep the old code.
+                stoppedForUpdate = StopInstance(true);
+                if (stoppedForUpdate.Count > 0) Log(L("Остановлено на время обновления: ", "Stopped for the update: ") + string.Join(", ", stoppedForUpdate));
 
                 // Steps with rough weights (share of the progress bar).
                 var steps = new List<Tuple<string, double, Action>>();
@@ -542,12 +665,17 @@ namespace Jarvis
                 progressBase = 0.97; progressSpan = 0.03;
                 Step(L("Финальная настройка", "Final setup"), L("Ярлыки, запись в «Приложения и возможности»", "Shortcuts, the \"Apps & features\" entry"));
                 WriteLang();
-                if (sel.Contains("agent")) ComposeFullPreset(sel);
-                WriteInstallJson(sel);
+                // Everything installed now or before: the full preset keeps the MCP rows of earlier tools.
+                var all = prevComponents.Union(sel).ToList();
+                if (all.Contains("agent")) ComposeFullPreset(all);
+                WriteInstallJson(all);
                 RegisterUninstall();
                 if (shortcut) CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "J.A.R.V.I.S..lnk"));
                 CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "J.A.R.V.I.S..lnk"));
-                CreateUninstallShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), L("Удалить J.A.R.V.I.S..lnk", "Uninstall J.A.R.V.I.S..lnk")));
+                // One uninstall shortcut, named in the current language (an update may switch it).
+                string programs = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+                try { File.Delete(Path.Combine(programs, L("Uninstall J.A.R.V.I.S..lnk", "Удалить J.A.R.V.I.S..lnk"))); } catch { }
+                CreateUninstallShortcut(Path.Combine(programs, L("Удалить J.A.R.V.I.S..lnk", "Uninstall J.A.R.V.I.S..lnk")));
                 Progress(1, L("Готово", "Done"));
                 Log(failures.Count == 0 ? L("✔ Установка завершена", "✔ Setup complete") : L("Установка завершена с ошибками: ", "Setup finished with errors: ") + failures.Count);
                 Ui(() => { ShowDone(failures); if (silent) { Environment.ExitCode = failures.Count == 0 ? 0 : 2; Finish(); } });
@@ -570,6 +698,8 @@ namespace Jarvis
         }
 
         List<string> selection = new List<string>();
+        List<string> prevComponents = new List<string>();
+        List<string> stoppedForUpdate = new List<string>();
 
         void ShowDone(List<string> failures)
         {
@@ -577,7 +707,14 @@ namespace Jarvis
             StartReactor(1.0);
             F<TextBlock>("Subtitle").Text = L("УСТАНОВКА ЗАВЕРШЕНА", "SETUP COMPLETE");
             var sb = new StringBuilder();
-            sb.AppendLine(L("J.A.R.V.I.S. установлен в ", "J.A.R.V.I.S. is installed in ") + root + ".");
+            if (prevComponents.Count > 0)
+            {
+                F<TextBlock>("DoneTitle").Text = L("Обновление завершено, сэр.", "Update complete, sir.");
+                sb.AppendLine(L("J.A.R.V.I.S. в ", "J.A.R.V.I.S. in ") + root + L(" обновлён до ", " is updated to ") + Src.Version + ".");
+                if (stoppedForUpdate.Count > 0)
+                    sb.AppendLine(L("На время обновления J.A.R.V.I.S. был остановлен: агента и Telegram-бота запустите снова в лаунчере.", "J.A.R.V.I.S. was stopped for the update: start the agent and the Telegram bot again in the launcher."));
+            }
+            else sb.AppendLine(L("J.A.R.V.I.S. установлен в ", "J.A.R.V.I.S. is installed in ") + root + ".");
             sb.AppendLine(L("Удалить: uninstall.exe в этой папке, «Пуск» → «Удалить J.A.R.V.I.S.» или «Приложения и возможности».", "To remove: uninstall.exe in this folder, Start → \"Uninstall J.A.R.V.I.S.\" or \"Apps & features\"."));
             if (selection.Contains("agent")) sb.AppendLine(L("При первом запуске агента введите свой ключ DeepSeek (platform.deepseek.com → API keys).", "When the agent first starts, enter your DeepSeek key (platform.deepseek.com → API keys)."));
             if (selection.Contains("models")) sb.AppendLine(L("Локальные модели: вкладка «Модели» в лаунчере — подборка под ваш ПК.", "Local models: the Models tab in the launcher — picks for your PC."));
@@ -597,7 +734,14 @@ namespace Jarvis
 
         void Finish()
         {
-            if (F<CheckBox>("LaunchBox").IsChecked == true && root != null && !uninstall) StartLauncher();
+            if (root != null && !uninstall)
+            {
+                // The wallpaper was running before the update: bring it back.
+                string hud = Path.Combine(root, "hud", "JarvisHUD2.exe");
+                if (stoppedForUpdate.Contains("JarvisHUD2") && File.Exists(hud))
+                    try { Process.Start(new ProcessStartInfo(hud) { WorkingDirectory = Path.GetDirectoryName(hud), UseShellExecute = true }); } catch { }
+                if (F<CheckBox>("LaunchBox").IsChecked == true) StartLauncher();
+            }
             Window.Close();
         }
 
@@ -977,6 +1121,12 @@ namespace Jarvis
             }
         }
 
+        // Personal files kept on an update: agent settings (default model, theme…), the person's own agent
+        // instructions and patch layer (the launcher keeps its generated parts — local models, language — current).
+        static readonly string[] KeepIfPresent = {
+            @"agent\home\settings.yaml", @"agent\home\AGENTS.md", @"agent\home\cordis.patch.yml", @"tools\mcp\VectCutAPI\config.json",
+        };
+
         static readonly string[] TextExt = { ".yml", ".yaml", ".json", ".js", ".md", ".ps1", ".cmd", ".txt", ".css", ".html", ".py", ".cpp" };
 
         // Payload folder <component>/ -> root, with {{ROOT}} placeholders filled in.
@@ -988,7 +1138,7 @@ namespace Jarvis
                 string prefix = component + "/";
                 string rootFwd = root.Replace('\\', '/');
                 string browser = File.Exists(@"C:\Program Files\Google\Chrome\Application\chrome.exe") || File.Exists(@"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe") ? "chrome" : "msedge";
-                int count = 0;
+                int count = 0, kept = 0;
                 foreach (var e in z.Entries)
                 {
                     string entry = e.FullName.Replace('\\', '/');
@@ -996,6 +1146,7 @@ namespace Jarvis
                     count++;
                     string rel = entry.Substring(prefix.Length).Replace('/', '\\');
                     string target = Path.Combine(root, rel);
+                    if (KeepIfPresent.Contains(rel, StringComparer.OrdinalIgnoreCase) && File.Exists(target)) { kept++; continue; }
                     Directory.CreateDirectory(Path.GetDirectoryName(target));
                     if (TextExt.Contains(Path.GetExtension(target).ToLowerInvariant()))
                     {
@@ -1010,7 +1161,7 @@ namespace Jarvis
                     else e.ExtractToFile(target, true);
                 }
                 if (count == 0) throw new Exception(L("в установщике нет файлов компонента «" + component + "» — файл установщика повреждён", "the installer has no files for the \"" + component + "\" component — the installer file is damaged"));
-                Log(L("  распаковано файлов: ", "  files unpacked: ") + count);
+                Log(L("  распаковано файлов: ", "  files unpacked: ") + (count - kept) + (kept > 0 ? L(", сохранено своих: ", ", personal files kept: ") + kept : ""));
             }
         }
 
@@ -1108,8 +1259,9 @@ namespace Jarvis
             var ps = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
             var args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + Path.Combine(root, "launcher", "start.ps1") + "\"";
             string extra = "";
-            if (selection.Contains("winlook")) extra += " -SetupLook";
-            if (selection.Contains("icons")) extra += " -SetupIcons";
+            // Only for parts added now: an update must not switch back on a look the person turned off.
+            if (selection.Contains("winlook") && !prevComponents.Contains("winlook")) extra += " -SetupLook";
+            if (selection.Contains("icons") && !prevComponents.Contains("icons")) extra += " -SetupIcons";
             Process.Start(new ProcessStartInfo(ps, args + extra) { UseShellExecute = false, CreateNoWindow = true });
         }
 
@@ -1169,18 +1321,9 @@ namespace Jarvis
                 var problems = new List<string>();
                 progressBase = 0; progressSpan = 1;
                 Step(L("Остановка J.A.R.V.I.S.", "Stopping J.A.R.V.I.S."), L("Агент, модели, обои, Windhawk", "Agent, models, wallpaper, Windhawk"));
-                try { var r = WebRequest.Create("http://127.0.0.1:3190/api/shutdown"); r.Method = "POST"; r.Headers["X-Jarvis"] = "1"; r.ContentLength = 0; r.Timeout = 5000; r.GetResponse().Close(); } catch { }
                 string wh = Path.Combine(root, "tools", "windhawk", "windhawk.exe");
                 if (File.Exists(wh)) { try { var p = Process.Start(new ProcessStartInfo(wh, "-exit -wait -timeout 10000") { UseShellExecute = false, CreateNoWindow = true }); p.WaitForExit(20000); } catch { } }
-                foreach (var p in Process.GetProcesses())
-                {
-                    try
-                    {
-                        string path = p.MainModule.FileName;
-                        if (path.StartsWith(root + "\\", StringComparison.OrdinalIgnoreCase)) { p.Kill(); p.WaitForExit(5000); }
-                    }
-                    catch { }
-                }
+                StopInstance(false);
                 Progress(0.3, null);
                 string winStyle = Path.Combine(root, "launcher", "tools", "win-style.ps1");
                 if (File.Exists(Path.Combine(root, "data", "launcher", "win-style-backup.json")) && File.Exists(winStyle))
