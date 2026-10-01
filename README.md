@@ -13,6 +13,9 @@ Built on **[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)**
 [![llama.cpp](https://img.shields.io/badge/local%20models-llama.cpp-8A5CF6)](https://github.com/ggml-org/llama.cpp)
 [![ComfyUI](https://img.shields.io/badge/images-ComfyUI-F59E0B)](https://github.com/Comfy-Org/ComfyUI)
 [![Telegram](https://img.shields.io/badge/Telegram-bot-26A5E4?logo=telegram&logoColor=white)](#-your-assistant-in-telegram)
+[![License: MIT](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/SanyaSS111/jarvis?label=release&color=0E7490)](../../releases/latest)
+[![Stars](https://img.shields.io/github/stars/SanyaSS111/jarvis?style=social)](../../stargazers)
 
 **[⬇ Download](../../releases/latest)** · **[Features](#features)** · **[Quick start](#quick-start)** · **[Русская версия ↓](#-русский)**
 
@@ -156,6 +159,18 @@ This repository holds the sources; the working install lives in its own folder (
 [edge‑tts](https://github.com/rany2/edge-tts) ·
 [uv](https://github.com/astral-sh/uv) · [Node.js](https://nodejs.org)
 
+## License & contributing
+
+J.A.R.V.I.S. is released under the **[MIT License](LICENSE)**; bundled and downloaded third‑party components keep their
+own licenses — see [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Bugs and ideas: [issues](../../issues/new/choose)
+and [Discussions](../../discussions); pull requests are welcome — [CONTRIBUTING.md](CONTRIBUTING.md).
+
+<div align="center">
+
+**If J.A.R.V.I.S. made your PC a bit more sci‑fi — give it a ⭐, it really helps the project grow.**
+
+</div>
+
 <sub>A fan project, not affiliated with Marvel, Disney or DeepSeek. Iron Man and J.A.R.V.I.S. are trademarks of Marvel.</sub>
 
 ---
@@ -262,5 +277,17 @@ This repository holds the sources; the working install lives in its own folder (
 Здесь лежат исходники; рабочая установка — в отдельной папке (например, `C:\LLM`). `sync.ps1` переносит исходники
 из рабочей установки в репозиторий (с проверкой на ключи) и обратно, `installer\build.ps1` собирает `JARVIS-Setup.exe`.
 Подробнее — [РАЗРАБОТКА.md](РАЗРАБОТКА.md), устройство рабочей папки — [docs/УСТРОЙСТВО.md](docs/УСТРОЙСТВО.md).
+
+## Лицензия и участие
+
+J.A.R.V.I.S. распространяется под **[лицензией MIT](LICENSE)**; сторонние компоненты сохраняют свои лицензии —
+см. [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Ошибки и идеи — в [issues](../../issues/new/choose)
+и [Discussions](../../discussions); pull request'ы приветствуются — [CONTRIBUTING.md](CONTRIBUTING.md).
+
+<div align="center">
+
+**Если J.A.R.V.I.S. сделал ваш ПК чуточку фантастичнее — поставьте ⭐, это правда помогает проекту расти.**
+
+</div>
 
 <sub>Фанатский проект, не связан с Marvel, Disney или DeepSeek. Iron Man и J.A.R.V.I.S. — товарные знаки Marvel.</sub>

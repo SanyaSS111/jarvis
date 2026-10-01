@@ -1,0 +1,43 @@
+name: 🐞 Bug report · Ошибка
+description: Something doesn't work · Что-то не работает
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste API keys or Telegram tokens.** · **Не вставляйте ключи API и токены Telegram.**
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? · Что случилось?
+      description: Steps, what you expected and what you got · Шаги, что ожидали и что получилось
+    validations:
+      required: true
+  - type: dropdown
+    id: part
+    attributes:
+      label: Part · Часть
+      options:
+        - Installer · Установщик
+        - Launcher · Лаунчер
+        - Agent · Агент
+        - Local models · Локальные модели
+        - Images / ComfyUI · Картинки
+        - Telegram bot · Telegram-бот
+        - Windows look / HUD · Оформление и обои
+        - Other · Другое
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Windows, GPU, RAM · Windows, видеокарта, ОЗУ
+      placeholder: Windows 11 24H2, RTX 3060 12 GB, 16 GB RAM
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log · Журнал
+      description: Launcher → System → Logs (copy the relevant part) · Лаунчер → «Система» → «Журналы»
+      render: text
