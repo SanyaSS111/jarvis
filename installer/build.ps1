@@ -43,7 +43,7 @@ foreach ($f in 'launcher\server.js', 'launcher\start.ps1', 'README.md') { Add co
 AddGlob core 'launcher\lib' '*.js'
 AddGlob core 'launcher\ui' '*.html', '*.css', '*.js', '*.svg'
 AddGlob core 'launcher\mods' '*.wh.cpp'
-foreach ($f in 'win-style.ps1', 'make-win-icons.ps1', 'make-cursors.ps1', 'make-lockscreen.ps1') { Add core "launcher\tools\$f" }
+foreach ($f in 'win-style.ps1', 'make-win-icons.ps1', 'make-cursors.ps1', 'make-lockscreen.ps1', 'tray.ps1') { Add core "launcher\tools\$f" }
 Add core 'launcher\icons\jarvis.ico'
 AddGlob core 'launcher\icons\windows' '*.ico', 'strip.png'
 AddGlob core 'launcher\icons\cursors' '*.cur', 'strip.png'

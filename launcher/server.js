@@ -551,6 +551,16 @@ const ACTIONS = {
   'shutdown': async () => { await agentStop(); await models.stop(true); if (comfy.running()) await comfy.stop(); await telegram.stop(true); journal(T('Агент и модель отключены', 'Agent and model shut down')); },
   'settings/lang': (b) => setLang(String(b.lang)),
   'ui/open': () => openLauncherWindow(),
+  // Tray "Quit completely": everything above plus the HUD wallpaper, whatever else still runs from this
+  // folder (MCP tools, Python, bot leftovers), the J.A.R.V.I.S. Edge windows, then the launcher itself.
+  // Windhawk stays: it only keeps the Windows look and stopping it would change the desktop.
+  'quit': async () => {
+    await ACTIONS.shutdown();
+    if (fs.existsSync(P.hudExe)) await hudStop(true); // the HUD is stopped by name: only if it is this install's
+    journal(T('J.A.R.V.I.S. закрыт из трея', 'J.A.R.V.I.S. closed from the tray'));
+    await stopStrays();
+    setTimeout(() => process.exit(0), 300);
+  },
 };
 
 const server = http.createServer(async (req, res) => {
@@ -560,6 +570,9 @@ const server = http.createServer(async (req, res) => {
   if (host !== `127.0.0.1:${PORT}` && host !== `localhost:${PORT}`) { res.writeHead(403); return res.end(); }
 
   if (url.pathname === '/api/ping') return send(res, 200, { ok: true });
+  // State for the tray icon menu (tools	ray.ps1).
+  if (url.pathname === '/api/tray') return send(res, 200, { lang: i18n.lang(), agent: S.agent.status, model: models.activeStatus(),
+    comfy: comfy.running(), telegram: telegram.running(), hud: S.hud.running });
   if (url.pathname === '/api/events') {
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', Connection: 'keep-alive' });
     res.write(`event: state\ndata: ${JSON.stringify(snapshot())}\n\n`);
@@ -629,7 +642,31 @@ server.on('error', (e) => {
   } else { throw e; }
 });
 
+// Processes still running from this install after a full stop, and the Edge windows with J.A.R.V.I.S.
+// profiles (data\*\edge-profile); never this launcher, Windhawk or the person's own browser.
+function stopStrays() {
+  const root = ROOT.replace(/'/g, "''");
+  const script = "$ProgressPreference = 'SilentlyContinue'; $me = " + process.pid + '; ' +
+    "Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $me -and $_.ProcessId -ne $PID -and (" +
+    "($_.ExecutablePath -like '" + root + "\\*' -and $_.ExecutablePath -notlike '" + root + "\\tools\\windhawk\\*') -or " +
+    "($_.Name -eq 'msedge.exe' -and $_.CommandLine -like '*" + root + "\\data\\*edge-profile*')) } | " +
+    'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }';
+  const ps = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  return run(ps, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { timeout: 30000 });
+}
+
+// Tray icon (tools/tray.ps1): status and stop buttons; it watches this process and ends with it.
+// Only the real launcher on the default port gets one (test copies run on other ports).
+function startTray() {
+  if (PORT !== 3190) return;
+  const ps = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
+  cp.spawn(ps, ['-NoProfile', '-STA', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(__dirname, 'tools', 'tray.ps1'),
+    '-Port', String(PORT), '-ParentPid', String(process.pid), '-Icon', path.join(__dirname, 'icons', 'jarvis.ico')],
+  { windowsHide: true, stdio: 'ignore' });
+}
+
 server.listen(PORT, '127.0.0.1', async () => {
+  startTray();
   journal(T('J.A.R.V.I.S. запущен', 'J.A.R.V.I.S. started'));
   S.hw = await detectHardware(run, path.dirname(P.llama));
   const gpuText = S.hw.gpu ? `${S.hw.gpu.name} ${Math.round(S.hw.gpu.vramMB / 1024)} ${T('ГБ', 'GB')}` : T('без дискретной видеокарты', 'no discrete GPU');

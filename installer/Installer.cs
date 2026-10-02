@@ -211,7 +211,12 @@ namespace Jarvis
 
         public Installer(string[] args)
         {
-            uninstall = args.Any(a => a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase));
+            // uninstall.exe in the install folder is a copy of this program: a double-click on it (no arguments)
+            // must uninstall too, not open the setup wizard.
+            string exeName = Path.GetFileName(Assembly.GetExecutingAssembly().Location);
+            uninstall = args.Any(a => a.Equals("/uninstall", StringComparison.OrdinalIgnoreCase))
+                || exeName.Equals("uninstall.exe", StringComparison.OrdinalIgnoreCase)
+                || exeName.Equals("jarvis-uninstall.exe", StringComparison.OrdinalIgnoreCase);
             using (var s = Assembly.GetExecutingAssembly().GetManifestResourceStream("ui.xaml"))
                 Window = (Window)XamlReader.Load(s);
             Window.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(
@@ -1248,6 +1253,20 @@ namespace Jarvis
             catch (Exception ex) { Log(L("Ярлык не создан: ", "Shortcut not created: ") + ex.Message); }
         }
 
+        // A shortcut is removed only when it starts something in this install: another J.A.R.V.I.S. (a second
+        // copy, a hand-made setup) may own a shortcut with the same name.
+        static bool ShortcutPointsInto(string lnkPath, string dir)
+        {
+            try
+            {
+                dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
+                dynamic lnk = shell.CreateShortcut(lnkPath);
+                string where = (string)lnk.TargetPath + " " + (string)lnk.Arguments + " " + (string)lnk.WorkingDirectory;
+                return where.IndexOf(dir.TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase) >= 0;
+            }
+            catch { return false; }
+        }
+
         void CreateUninstallShortcut(string lnkPath)
         {
             try
@@ -1356,8 +1375,17 @@ namespace Jarvis
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "J.A.R.V.I.S..lnk"),
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Удалить J.A.R.V.I.S..lnk"),
                     Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Programs), "Uninstall J.A.R.V.I.S..lnk") })
-                    try { if (File.Exists(lnk)) File.Delete(lnk); } catch { }
-                try { Registry.CurrentUser.DeleteSubKeyTree(@"Software\Microsoft\Windows\CurrentVersion\Uninstall\JARVIS", false); } catch { }
+                    try { if (File.Exists(lnk) && ShortcutPointsInto(lnk, root)) File.Delete(lnk); } catch { }
+                // The "Apps & features" entry too only when it is this install's (it names the last installed copy).
+                try
+                {
+                    string entry = @"Software\Microsoft\Windows\CurrentVersion\Uninstall\JARVIS";
+                    string location = null;
+                    using (var k = Registry.CurrentUser.OpenSubKey(entry)) if (k != null) location = k.GetValue("InstallLocation") as string;
+                    if (location != null && string.Equals(location.TrimEnd('\\'), root.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+                        Registry.CurrentUser.DeleteSubKeyTree(entry, false);
+                }
+                catch { }
                 Progress(0.6, null);
                 Step(L("Удаляю файлы", "Deleting files"), root);
                 for (int attempt = 0; attempt < 5 && Directory.Exists(root); attempt++)
