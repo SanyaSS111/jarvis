@@ -24,7 +24,7 @@
   <nav class="tabs" role="tablist">
     <button data-tab="home" class="active" data-en="Home">Главная</button>
     <button data-tab="model" data-en="Models">Модели</button>
-    <button data-tab="hud" data-en="Look">Оформление</button>
+    <button data-tab="hud" data-en="Wallpaper">Обои</button>
     <button data-tab="system" data-en="System">Система</button>
   </nav>
   <div class="top-right">
@@ -295,75 +295,6 @@
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-head"><span class="idx">H3</span><h2>Windows</h2></div>
-        <div class="panel-body">
-          <h3 data-en="Windows interface">Интерфейс Windows</h3>
-          <div class="tb-mock" aria-hidden="true">
-            <span class="tb-start"></span><span class="tb-app active"></span><span class="tb-app on"></span><span class="tb-app"></span>
-            <span class="tb-tray"><i></i><i></i><b>04:38<small>24.09.2026</small></b></span>
-          </div>
-          <div class="status-line"><span id="tb-status">—</span></div>
-          <div class="dl-msg" id="tb-step"></div>
-          <pre class="error-box" id="tb-error" hidden></pre>
-          <ul class="parts" id="tb-parts"></ul>
-          <label class="switch" id="tb-auto-wrap" hidden><input type="checkbox" id="tb-auto"><span></span><t data-en="Start Windhawk with Windows (otherwise the look comes back after a reboot when you open the launcher)">Запускать Windhawk вместе с Windows (иначе после перезагрузки оформление вернётся при открытии лаунчера)</t></label>
-          <div class="btn-row">
-            <button class="btn primary" id="tb-install">Установить всё</button>
-            <button class="btn" id="tb-reload" hidden data-en="Reload themes">Перечитать темы</button>
-            <button class="btn ghost" id="tb-open" hidden data-en="Open Windhawk">Открыть Windhawk</button>
-          </div>
-          <p class="muted small" data-en="Works through the built-in Windhawk (open source, GPL-3.0): the launcher downloads it into C:\LLM\tools\windhawk,
-            installs the &quot;Windows 11 … Styler&quot; mods and the C:\LLM\docs\*-jarvis.yaml themes. The switches bring the normal look back instantly.">Работает через встроенный Windhawk (открытый код, GPL-3.0): лаунчер сам скачивает его в C:\LLM\tools\windhawk,
-            ставит моды «Windows 11 … Styler» и темы C:\LLM\docs\*-jarvis.yaml. Переключатели мгновенно возвращают обычный вид.</p>
-
-          <h3 data-en="The rest is manual, a couple of clicks">Остальное — вручную, в пару кликов</h3>
-          <ul class="parts manual">
-            <li>
-              <b data-en="Jarvis cursors">Курсоры Джарвиса</b>
-              <button class="btn small" id="g-cursors" data-en="Open">Открыть</button>
-            </li>
-            <li>
-              <b><t data-en="Accent color">Цвет акцента</t> <small class="muted">5CE1FF</small></b>
-              <button class="btn small" id="g-accent" data-en="Open">Открыть</button>
-            </li>
-            <li>
-              <b data-en="Lock screen">Экран блокировки</b>
-              <button class="btn small" id="g-lock" data-en="Open">Открыть</button>
-            </li>
-          </ul>
-          <div class="note" id="g-hint" hidden></div>
-          <details class="cursor-map">
-            <summary data-en="Which cursor goes where">Какой курсор куда</summary>
-            <table class="qtable">
-              <tr><td data-en="Normal Select">Основной режим</td><td>arrow.cur</td></tr>
-              <tr><td data-en="Help Select">Выбор справки</td><td>help.cur</td></tr>
-              <tr><td data-en="Working in Background">Фоновый режим</td><td>working.cur</td></tr>
-              <tr><td data-en="Busy">Занят</td><td>busy.cur</td></tr>
-              <tr><td data-en="Precision Select">Графическое выделение</td><td>cross.cur</td></tr>
-              <tr><td data-en="Text Select">Выделение текста</td><td>text.cur</td></tr>
-              <tr><td data-en="Handwriting">Рукописный ввод</td><td>pen.cur</td></tr>
-              <tr><td data-en="Unavailable">Недоступно</td><td>no.cur</td></tr>
-              <tr><td data-en="Vertical Resize">Изменение вертикальных размеров</td><td>ns.cur</td></tr>
-              <tr><td data-en="Horizontal Resize">Изменение горизонтальных размеров</td><td>ew.cur</td></tr>
-              <tr><td data-en="Diagonal Resize 1">Изменение размеров по диагонали 1</td><td>nwse.cur</td></tr>
-              <tr><td data-en="Diagonal Resize 2">Изменение размеров по диагонали 2</td><td>nesw.cur</td></tr>
-              <tr><td data-en="Move">Перемещение</td><td>move.cur</td></tr>
-              <tr><td data-en="Alternate Select">Альтернативный выбор</td><td>up.cur</td></tr>
-              <tr><td data-en="Link Select">Выбор ссылки</td><td>link.cur</td></tr>
-            </table>
-          </details>
-
-          <h3 data-en="Icons">Иконки</h3>
-          <div class="win-preview"><img src="/api/win/preview.png" alt="Иконки в стиле Джарвиса" data-en-alt="Jarvis-style icons"></div>
-          <div class="status-line"><span id="win-status">—</span></div>
-          <div class="btn-row">
-            <button class="btn primary" id="win-apply">Применить иконки</button>
-            <button class="btn danger" id="win-restore" data-en="Restore original">Вернуть как было</button>
-          </div>
-          <p class="muted small" data-en="Desktop icons (This PC, Recycle Bin, Network…), the Documents, Downloads, Pictures, Music and Videos folder icons and shortcuts of well-known programs. Everything is backed up and restored with one button.">Значки рабочего стола («Этот компьютер», «Корзина», «Сеть»…), иконки папок «Документы», «Загрузки», «Изображения», «Музыка», «Видео» и ярлыки известных программ. Всё прежнее сохраняется и возвращается одной кнопкой.</p>
-        </div>
-      </div>
     </div>
   </section>
 

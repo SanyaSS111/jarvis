@@ -21,8 +21,6 @@ authors and keep their own licenses.
 | llama.cpp | MIT | https://github.com/ggml-org/llama.cpp |
 | ComfyUI | GPL-3.0 | https://github.com/Comfy-Org/ComfyUI |
 | ComfyUI-GGUF (leejet fork) | Apache-2.0 | https://github.com/leejet/ComfyUI-GGUF |
-| Windhawk | GPL-3.0 | https://github.com/ramensoftware/windhawk |
-| Windhawk mods ("Windows 11 … Styler", Simple Window Switcher) | as stated in each mod, otherwise MIT | https://github.com/ramensoftware/windhawk-mods |
 | Playwright MCP | Apache-2.0 | https://github.com/microsoft/playwright-mcp |
 | Windows-MCP | MIT | https://github.com/CursorTouch/Windows-MCP |
 | edge-tts | LGPL-3.0 | https://github.com/rany2/edge-tts |

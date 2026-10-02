@@ -26,7 +26,7 @@ Built on **[DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)**
 > [!NOTE]
 > **J.A.R.V.I.S. is powered by [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)** — DeepSeek's open agent runtime.
 > This project packs it into a one‑click Windows app and adds everything around it: a launcher, local models, image tools,
-> a Telegram bot, voice mode and a Jarvis‑style look for Windows itself. The interface is in **Russian**.
+> a Telegram bot, voice mode and a live HUD wallpaper. The interface is in **English or Russian**.
 
 ## Why you'll like it
 
@@ -75,13 +75,13 @@ Write tasks from anywhere; progress streams into the message. `/model` switches 
 models with buttons, `/mode` between Full and Lite. Photos you send go straight to the agent; pictures it draws come back as photos.
 Only your paired accounts can talk to it, and every risky action arrives as **✅ Allow / ❌ Reject** buttons.
 
-### ✨ The Jarvis look — for the whole of Windows
+### ✨ Live HUD wallpaper
 
-Live **HUD wallpaper**, a themed agent window, icons and cursors — and a restyle of Windows itself: taskbar, Start menu,
-notification center, File Explorer, window title bars, Settings and Alt+Tab (via an embedded, open‑source Windhawk).
-Every part has its own switch; switching off brings back the stock look instantly.
+An animated **HUD on the desktop** — the arc reactor, a clock, CPU / GPU / RAM sensors — plus a themed agent window.
+The wallpaper is optional and off by default: tick it in the installer, then turn it on in the launcher's **Wallpaper** tab.
+Windows itself keeps its own look: J.A.R.V.I.S. doesn't touch the taskbar, icons, cursors or the lock screen.
 
-<img src="assets/launcher-look.png" alt="Look tab: HUD wallpaper and Windows theming" width="100%">
+<img src="assets/launcher-wallpaper.png" alt="Wallpaper tab: HUD wallpaper and its settings" width="100%">
 
 ## Quick start
 
@@ -109,7 +109,7 @@ flowchart LR
   L --> M["💻 llama.cpp<br/>local models"]
   L --> C["🎨 ComfyUI<br/>images & photo editing"]
   L --> T["📱 Telegram bot"]
-  L --> W["✨ HUD wallpaper · Windhawk theme"]
+  L --> W["✨ HUD wallpaper"]
   T -- "ACP" --> A2["🧠 Agent for Telegram<br/>(same presets & history)"]
   A -- "MCP tools" --> X["Browser · Windows · Blender · CapCut · Search · Images"]
   A2 -- "MCP tools" --> X
@@ -118,8 +118,7 @@ flowchart LR
 ```
 
 Everything lives in one folder: the launcher starts and supervises the agent, local models, ComfyUI and the bot,
-keeps an eye on VRAM so they don't fight over it, and changes nothing outside its folder except the parts of the
-Windows look you switch on.
+keeps an eye on VRAM so they don't fight over it, and changes nothing outside its folder.
 
 ## Privacy & safety
 
@@ -127,7 +126,7 @@ Windows look you switch on.
 - 🚫 Access rules: files with keys and passwords (`.env`, `.pem`, `.ssh`, credentials) are off‑limits to the agent;
   deleting files and system commands require your confirmation — in the app and in Telegram.
 - 🏠 Local models and image tools work **fully offline**.
-- 🧹 Clean uninstall: *Start → Uninstall J.A.R.V.I.S.* removes everything and restores the stock Windows look.
+- 🧹 Clean uninstall: *Start → Uninstall J.A.R.V.I.S.* removes the folder, the shortcuts and autostart.
 
 ## Build from source
 
@@ -135,11 +134,11 @@ This repository holds the sources; the working install lives in its own folder (
 
 | Folder | What's inside |
 |---|---|
-| `launcher/` | Launcher core (`server.js`), modules (`lib/`), UI (`ui/`), Windhawk mod, scripts, icons |
+| `launcher/` | Launcher core (`server.js`), modules (`lib/`), UI (`ui/`), tray script, icon |
 | `agent/` | Agent plugins (Jarvis theme & voice, ACP preset join), Full/Lite presets, skills, access rules |
 | `tools/` | Image MCP server (ComfyUI), Telegram bot, Blender & CapCut helpers |
 | `installer/` | WPF installer (`Installer.cs`, `ui.xaml`) and `build.ps1` (bundles, secret scan, signing) |
-| `docs/` | Windows theme files · `УСТРОЙСТВО.md` — layout of the working install |
+| `docs/` | `УСТРОЙСТВО.md` — layout of the working install, guides |
 | `hud/` | Live wallpaper (Rust) |
 
 `sync.ps1` copies sources from the working install into the repo (with a secret scan) and back;
@@ -152,7 +151,6 @@ This repository holds the sources; the working install lives in its own folder (
 [ComfyUI](https://github.com/Comfy-Org/ComfyUI) ·
 [ComfyUI‑GGUF](https://github.com/leejet/ComfyUI-GGUF) ·
 [Qwen‑Image](https://huggingface.co/Qwen) ·
-[Windhawk](https://github.com/ramensoftware/windhawk) ·
 [Playwright MCP](https://github.com/microsoft/playwright-mcp) ·
 [Windows‑MCP](https://github.com/CursorTouch/Windows-MCP) ·
 [BlenderMCP](https://github.com/ahujasid/blender-mcp) ·
@@ -191,7 +189,7 @@ and [Discussions](../../discussions); pull requests are welcome — [CONTRIBUTIN
 > [!NOTE]
 > **J.A.R.V.I.S. работает на [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)** — открытом агентном движке DeepSeek.
 > Этот проект упаковывает его в Windows‑приложение, которое ставится в пару кликов, и добавляет всё вокруг: лаунчер,
-> локальные модели, работу с картинками, Telegram‑бота, голосовой режим и оформление самой Windows в стиле Джарвиса.
+> локальные модели, работу с картинками, Telegram‑бота, голосовой режим и живые обои‑HUD.
 
 ## Почему он вам понравится
 
@@ -240,13 +238,13 @@ and [Discussions](../../discussions); pull requests are welcome — [CONTRIBUTIN
 Фото из чата уходят агенту, нарисованные им картинки приходят фотографиями. Бот отвечает только привязанным аккаунтам,
 а каждое рискованное действие приходит кнопками **✅ Разрешить / ❌ Отклонить**.
 
-### ✨ Стиль Джарвиса — для всей Windows
+### ✨ Живые обои‑HUD
 
-Живые **обои‑HUD**, оформленное окно агента, иконки и курсоры — и сама Windows: панель задач, «Пуск», центр уведомлений,
-Проводник, заголовки окон, «Параметры» и Alt+Tab (через встроенный Windhawk с открытым кодом).
-У каждой части свой переключатель, выключили — стандартный вид вернулся сразу.
+Анимированный **HUD на рабочем столе** — реактор, часы, датчики процессора, видеокарты и памяти — и оформленное окно агента.
+Обои необязательны и по умолчанию выключены: отметьте их в установщике и включите в лаунчере на вкладке **«Обои»**.
+Сама Windows остаётся как есть: панель задач, значки, курсоры и экран блокировки J.A.R.V.I.S. не трогает.
 
-<img src="assets/launcher-look.png" alt="Вкладка «Оформление»: обои HUD и тема Windows" width="100%">
+<img src="assets/launcher-wallpaper.png" alt="Вкладка «Обои»: обои HUD и их настройки" width="100%">
 
 ## Быстрый старт
 
@@ -272,7 +270,7 @@ and [Discussions](../../discussions); pull requests are welcome — [CONTRIBUTIN
 - 🚫 Правила доступа: файлы с ключами и паролями (`.env`, `.pem`, `.ssh`, credentials) агенту недоступны;
   удаление файлов и системные команды — только после подтверждения, и в приложении, и в Telegram.
 - 🏠 Локальные модели и работа с картинками — **полностью офлайн**.
-- 🧹 Чистое удаление: «Пуск» → «Удалить J.A.R.V.I.S.» убирает всё и возвращает стандартный вид Windows.
+- 🧹 Чистое удаление: «Пуск» → «Удалить J.A.R.V.I.S.» убирает папку, ярлыки и автозапуск.
 
 ## Сборка из исходников
 

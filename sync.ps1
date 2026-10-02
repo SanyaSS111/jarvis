@@ -12,7 +12,7 @@ $repo = Split-Path -Parent $MyInvocation.MyCommand.Path
 $files = @(
   'launcher\server.js', 'launcher\start.ps1',
   'launcher\lib\*.js', 'launcher\ui\*.html', 'launcher\ui\*.css', 'launcher\ui\*.js', 'launcher\ui\*.svg',
-  'launcher\mods\*.wh.cpp', 'launcher\tools\*.ps1', 'launcher\icons\**',
+  'launcher\tools\*.ps1', 'launcher\icons\**',
   'agent\plugins\dsh-jarvis\package.json', 'agent\plugins\dsh-jarvis\cordis.patch.yml', 'agent\plugins\dsh-jarvis\lib\**',
   'agent\plugins\jarvis-acp-presets\index.mjs',
   'agent\home\AGENTS.md', 'agent\home\cordis.patch.yml', 'agent\home\.agent-presets\**', 'agent\home\skills\**',
@@ -23,7 +23,7 @@ $files = @(
   'tools\blender\blender_mcp_addon.py', 'tools\mcp\VectCutAPI\config.json', 'tools\mcp\VectCutAPI\mcp_server.py',
   'installer\Installer.cs', 'installer\ui.xaml', 'installer\build.ps1', 'installer\tools\**',
   'installer\dsh-runtime\package.json', 'installer\dsh-runtime\package-lock.json',
-  'docs\*.yaml', 'docs\*.md',
+  'docs\*.md',
   'hud\src\**', 'hud\tools\**', 'hud\Cargo.toml', 'hud\Cargo.lock', 'hud\build.bat', 'hud\jarvis2.ico'
 )
 # Mapped paths (repo path => live path): the agent's access rules outside C:\LLM, and the working install's own

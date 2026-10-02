@@ -245,54 +245,8 @@ function renderSys(s) {
     li.append(el('span', '', p.name), el('b', '', p.mb >= 1024 ? dec((p.mb / 1024).toFixed(1)) + ' ' + gb : p.mb + t(' МБ', ' MB')), bar);
     list.appendChild(li);
   }
-  const w = s.win || {};
-  setStatus('win-status', w.busy ? t('Применяю…', 'Applying…') : w.applied ? t('Иконки Джарвиса применены', 'Jarvis icons applied') : t('Стандартные значки Windows', 'Standard Windows icons'), w.busy ? 'busy' : w.applied ? 'on' : 'off');
-  $('win-apply').disabled = !!w.busy;
-  $('win-apply').textContent = w.applied ? t('Применить ещё раз', 'Apply again') : t('Применить иконки', 'Apply icons');
-  $('win-restore').disabled = !!w.busy || !w.applied;
-  renderTaskbar(s.taskbar || {});
   $('foot-left').textContent = t(`${s.meta.root} · ядро 127.0.0.1:3190 · работает ${fmtDur((Date.now() - s.startedAt) / 1000)}`,
     `${s.meta.root} · core 127.0.0.1:3190 · up ${fmtDur((Date.now() - s.startedAt) / 1000)}`);
-}
-
-// Windows shell parts restyled through the built-in Windhawk (taskbar, Start, notifications, Explorer).
-function renderTaskbar(tb) {
-  const mods = tb.mods || {};
-  const parts = Object.entries(mods);
-  const missing = parts.filter(([, m]) => !m.installed).map(([k]) => k);
-  const anyOn = parts.some(([, m]) => m.enabled);
-  setStatus('tb-status', tb.step ? t('Установка…', 'Installing…') : !tb.installed ? t('Не установлено', 'Not installed')
-    : anyOn ? (tb.running ? t('Оформление Джарвиса активно', 'Jarvis look active') : t('Windhawk не запущен', 'Windhawk is not running')) : t('Стандартный вид Windows', 'Standard Windows look'),
-  tb.step ? 'busy' : anyOn && tb.running ? 'on' : 'off');
-  $('tb-step').textContent = tb.step || '';
-  $('tb-error').hidden = !tb.error; $('tb-error').textContent = tb.error || '';
-  $('tb-install').hidden = !missing.length;
-  $('tb-install').disabled = !!tb.step;
-  $('tb-install').textContent = missing.length === parts.length ? t('Установить всё', 'Install all') : t(`Установить остальное (${missing.length})`, `Install the rest (${missing.length})`);
-  $('tb-auto-wrap').hidden = $('tb-reload').hidden = $('tb-open').hidden = !tb.installed;
-  if (document.activeElement !== $('tb-auto')) $('tb-auto').checked = !!tb.autorun;
-  const box = $('tb-parts');
-  const sig = JSON.stringify([parts, !!tb.step]);
-  if (box.dataset.sig === sig) return;
-  box.dataset.sig = sig; box.textContent = '';
-  for (const [key, m] of parts) {
-    const li = el('li');
-    li.appendChild(el('b', '', m.label));
-    if (m.installed) {
-      li.appendChild(el('small', m.enabled ? 'st-on' : 'st-off', m.enabled ? t('Джарвис', 'Jarvis') : t('стандарт', 'standard')));
-      const lab = el('label', 'switch');
-      const inp = el('input'); inp.type = 'checkbox'; inp.checked = m.enabled;
-      inp.onchange = () => post('taskbar/toggle', { key, on: inp.checked });
-      lab.append(inp, el('span'));
-      li.appendChild(lab);
-    } else {
-      const b = el('button', 'btn small', t('Установить', 'Install'));
-      b.disabled = !!tb.step;
-      b.onclick = () => post('taskbar/install', { keys: [key] });
-      li.appendChild(b);
-    }
-    box.appendChild(li);
-  }
 }
 
 let journalSig = '';
@@ -448,33 +402,6 @@ $('power').onclick = async () => {
   post('shutdown');
 };
 $('t-blender').onclick = () => post('tool/blender');
-$('win-apply').onclick = () => post('win/apply');
-// Manual steps: open the right Windows page and put what to paste into the clipboard.
-async function guide(action, clip, hint) {
-  if (clip) { try { await navigator.clipboard.writeText(clip); } catch {} }
-  post(action);
-  $('g-hint').hidden = false;
-  $('g-hint').textContent = hint;
-}
-$('g-cursors').onclick = () => guide('guide/cursors', null, t(
-  'Открылись «Свойства: Мышь» → «Указатели» и папка с курсорами. Для каждой строки нажмите «Обзор» и выберите файл по таблице ниже, затем «Сохранить как…» → «J.A.R.V.I.S.» и «ОК».',
-  'Mouse Properties → Pointers and the cursor folder are open. For each row press "Browse" and pick the file from the table below, then "Save As…" → "J.A.R.V.I.S." and "OK".'));
-$('g-accent').onclick = () => guide('guide/accent', '5CE1FF', t(
-  'Открылись «Цвета». В «Цвет элементов» выберите «Вручную» → «Просмотреть цвета» → «Дополнительно» и вставьте 5CE1FF (уже в буфере обмена, Ctrl+V).',
-  'Colors is open. Under "Accent color" choose "Manual" → "View colors" → "More" and paste 5CE1FF (already in the clipboard, Ctrl+V).'));
-$('g-lock').onclick = () => guide('guide/lock', (state && state.meta ? state.meta.root : 'C:\\LLM') + '\\data\\launcher\\lockscreen.png', t(
-  'Открылся «Экран блокировки». В «Персонализировать экран блокировки» выберите «Изображение» → «Обзор фотографий», вставьте путь в поле имени файла (Ctrl+V) и нажмите «Выбрать изображение».',
-  'Lock screen is open. Under "Personalize your lock screen" choose "Picture" → "Browse photos", paste the path into the file name box (Ctrl+V) and press "Choose picture".'));
-$('tb-open').onclick = () => post('taskbar/windhawk');
-$('tb-install').onclick = () => {
-  const mods = (state && state.taskbar && state.taskbar.mods) || {};
-  post('taskbar/install', { keys: Object.keys(mods).filter((k) => !mods[k].installed) });
-};
-$('tb-reload').onclick = () => post('taskbar/reload');
-$('tb-auto').onchange = (e) => post('taskbar/autostart', { on: e.target.checked });
-$('win-restore').onclick = async () => {
-  if (await confirmBox(t('Стандартные значки', 'Standard icons'), t('Вернуть обычные значки Windows, папок и ярлыков?', 'Restore the normal Windows, folder and shortcut icons?'), t('Вернуть', 'Restore'))) post('win/restore');
-};
 
 // ---------------------------------------------------------------- stream
 function connect() {

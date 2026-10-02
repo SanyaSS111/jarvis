@@ -89,34 +89,12 @@ main { flex: 1; min-height: 0; padding-block: 16px; position: relative; }
 .tab-page.active { display: block; animation: fadeIn .35s ease; }
 .home-grid { display: grid; grid-template-columns: minmax(300px, 1fr) minmax(360px, 1.15fr) minmax(300px, 1fr); gap: 18px; height: 100%; }
 .two-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; height: 100%; }
-.hud-grid { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(360px, 1.05fr) minmax(320px, 1fr); gap: 18px; height: 100%; }
-
-/* Taskbar mock-up of the Windhawk theme */
-.tb-mock {
-  position: relative; height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
-  background: linear-gradient(#0a1b25f2, #03070afa); border: 1px solid rgba(var(--acc), .12);
-}
-.tb-mock::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(var(--acc), .8) 20%, rgba(var(--acc), .8) 80%, transparent); box-shadow: 0 0 8px rgba(var(--acc), .7); }
-.tb-mock span { width: 32px; height: 32px; border: 1px solid transparent; border-radius: 2px; position: relative; }
-.tb-mock .tb-start { background: radial-gradient(circle, rgba(var(--acc), .9) 0 5px, transparent 6px); }
-.tb-mock .tb-app::before { content: ""; position: absolute; inset: 8px; border-radius: 3px; background: rgba(var(--acc), .35); }
-.tb-mock .tb-app.on::after, .tb-mock .tb-app.active::after { content: ""; position: absolute; left: 10px; right: 10px; bottom: 1px; height: 2px; background: rgba(var(--acc), .6); }
-.tb-mock .tb-app.active { background: rgba(var(--acc), .15); border-color: rgba(var(--acc), .6); }
-.tb-mock .tb-app.active::after { left: 6px; right: 6px; background: rgb(var(--acc)); }
-.tb-mock .tb-tray { margin-left: auto; width: auto; height: 100%; display: flex; align-items: center; gap: 8px; padding-left: 10px; border: 0; border-left: 1px solid rgba(var(--acc), .25); background: rgba(var(--acc), .05); }
-.tb-mock .tb-tray i { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid #9ff0ff; }
-.tb-mock .tb-tray b { font: 600 12px/1.1 "Bahnschrift", sans-serif; letter-spacing: .08em; color: #9ff0ff; text-align: right; }
-.tb-mock .tb-tray small { display: block; font-weight: 400; font-size: 10px; letter-spacing: .04em; color: rgb(var(--acc)); }
+.hud-grid { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(380px, 1.2fr); gap: 18px; height: 100%; }
 .parts { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; flex: none; }
 .parts li { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid rgba(var(--acc), .14); background: rgba(var(--acc), .03); }
 .parts li b { flex: 1; font-weight: 500; font-size: 13px; }
 .parts li small { font-size: 11.5px; }
 .parts .switch span { margin: 0; }
-.cursor-map { flex: none; font-size: 12.5px; }
-.cursor-map summary { cursor: pointer; color: rgb(var(--acc)); letter-spacing: .06em; padding: 4px 0; }
-.cursor-map .qtable td:last-child { text-align: left; color: rgb(var(--acc)); font-family: Consolas, monospace; }
-.steps { margin: 0; padding-left: 20px; font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; }
-.steps b { color: rgb(var(--acc)); font-weight: 500; }
 .three-grid { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 18px; height: 100%; }
 .col { display: flex; flex-direction: column; gap: 18px; min-height: 0; }
 .col.center { align-items: center; justify-content: center; gap: 6px; }
@@ -367,9 +345,6 @@ h3::before { content: "▸ "; color: rgb(var(--acc)); }
 .heavy { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .heavy li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; font-size: 12.5px; }
 .heavy li .bar { grid-column: 1 / -1; height: 4px; }
-.win-preview, .tb-mock, .steps { flex: none; }
-.win-preview { overflow-x: auto; border: 1px solid rgba(var(--acc), .18); background: rgba(0, 0, 0, .3); }
-.win-preview img { display: block; height: 52px; width: auto; max-width: none; }
 .folder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .folder-grid .btn { letter-spacing: .06em; text-transform: none; font-size: 12.5px; text-align: left; }
 .log {

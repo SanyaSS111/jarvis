@@ -42,12 +42,9 @@ Say 'core: launcher, docs'
 foreach ($f in 'launcher\server.js', 'launcher\start.ps1', 'README.md') { Add core $f }
 AddGlob core 'launcher\lib' '*.js'
 AddGlob core 'launcher\ui' '*.html', '*.css', '*.js', '*.svg'
-AddGlob core 'launcher\mods' '*.wh.cpp'
-foreach ($f in 'win-style.ps1', 'make-win-icons.ps1', 'make-cursors.ps1', 'make-lockscreen.ps1', 'tray.ps1') { Add core "launcher\tools\$f" }
+Add core 'launcher\tools\tray.ps1'
 Add core 'launcher\icons\jarvis.ico'
-AddGlob core 'launcher\icons\windows' '*.ico', 'strip.png'
-AddGlob core 'launcher\icons\cursors' '*.cur', 'strip.png'
-AddGlob core 'docs' '*.yaml', '*.md'
+AddGlob core 'docs' '*.md'
 
 Say 'agent: presets, skills, profile, voice plugin (no credentials, sessions, storages)'
 $home2 = 'agent\home'
@@ -172,7 +169,7 @@ foreach ($sep in '\', '/', '\\') {
 # ------------------------------------------------------------------ secret scanner
 Say 'scanning for secrets'
 $forbiddenNames = '(?i)(^\.credentials|\.env$|\.pem$|\.key$|^id_rsa|^url\.txt$|\.log$|^\.anonymous-user-id$|registry\.json$|backup\.json$)'
-$forbiddenDirs = '(?i)\\(sessions|storages|node_modules|edge-profile|\.venv|models|windhawk)\\'
+$forbiddenDirs = '(?i)\\(sessions|storages|node_modules|edge-profile|\.venv|models)\\'
 $patterns = [ordered]@{
   'OpenAI/DeepSeek-style key' = 'sk-[A-Za-z0-9_\-]{16,}'
   'Anthropic key/token'       = 'sk-ant-[A-Za-z0-9_\-]{10,}'
@@ -293,13 +290,12 @@ if (-not $NoBundle) {
   }
 
   # Ready trees from this PC. Excluded: pnpm/uv state with this PC's paths, uv's per-machine
-  # environments, Windhawk's user profile, anything the installer recreates.
+  # environments, anything the installer recreates.
   $vendors = [ordered]@{
     'vendor-dsh.zip'        = @{ dir = "$src\runtime\dsh"; exclude = '^package(-lock)?\.json$|(^|/)\.cache/' }
     'vendor-profile.zip'    = @{ dir = "$src\agent\home\profiles\web\node_modules"; exclude = '^\.bin/|^\.modules\.yaml$|^\.pnpm-workspace-state|^\.pnpm/|^dsh-jarvis(/|$)|(^|/)\.cache/' }
     'vendor-uv.zip'         = @{ dir = "$src\runtime\uv"; exclude = '^(uv|uvx|uvw)\.exe$|^tools/|^cache/(environments|interpreter|builds)-v\d+/|^python/\.temp/|(^|/)\.lock$' }
     'vendor-playwright.zip' = @{ dir = "$src\tools\mcp\playwright"; exclude = '' }
-    'vendor-windhawk.zip'   = @{ dir = "$src\tools\windhawk"; exclude = '^AppData/(userprofile\.json|Engine/ModsWritable/|Engine/Symbols/)' }
   }
 
   # Needles: this PC's real secret values (read locally, never printed or stored) and profile path.

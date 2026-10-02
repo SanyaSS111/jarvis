@@ -1,7 +1,5 @@
 ﻿# Desktop shortcut entry point: starts the J.A.R.V.I.S. launcher server hidden
 # (or, if it already runs, just brings its window back).
-# -SetupLook / -SetupIcons: sent by the installer on the first start to set up the chosen Windows look.
-param([switch]$SetupLook, [switch]$SetupIcons)
 
 $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = Split-Path -Parent $here
@@ -26,10 +24,4 @@ if (Ping) {
   }
   Start-Process -FilePath $node -ArgumentList "`"$here\server.js`"" -WorkingDirectory $here -WindowStyle Hidden `
     -RedirectStandardOutput (Join-Path $data 'server.out.log') -RedirectStandardError (Join-Path $data 'server.err.log')
-}
-
-if ($SetupLook -or $SetupIcons) {
-  for ($i = 0; $i -lt 40 -and -not (Ping); $i++) { Start-Sleep -Milliseconds 500 }
-  if ($SetupIcons) { try { Invoke-WebRequest -Uri "$api/win/apply" -Method Post -Headers $headers -UseBasicParsing -TimeoutSec 120 | Out-Null } catch {} }
-  if ($SetupLook) { try { Invoke-WebRequest -Uri "$api/taskbar/install" -Method Post -Headers $headers -ContentType 'application/json' -Body '{}' -UseBasicParsing -TimeoutSec 10 | Out-Null } catch {} }
 }

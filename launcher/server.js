@@ -38,7 +38,6 @@ for (const d of [P.agentData, P.modelData, P.launcherData, P.models]) fs.mkdirSy
 
 const { detectHardware } = require('./lib/hardware');
 const { createModels } = require('./lib/models');
-const { createWindhawk } = require('./lib/windhawk');
 const { createComfy } = require('./lib/comfy');
 const { createTelegram } = require('./lib/telegram');
 const { applyFixes } = require('./lib/fixes');
@@ -46,6 +45,7 @@ const { createEngines } = require('./lib/engines');
 const { createGpuTelemetry } = require('./lib/gputelemetry');
 const i18n = require('./lib/i18n');
 const { applyAgentLang } = require('./lib/agentlang');
+const { cleanLegacy } = require('./lib/legacy');
 const T = i18n.T;
 i18n.init(ROOT);
 
@@ -354,33 +354,6 @@ async function setLang(l) {
   broadcast('state', snapshot());
 }
 
-// ---------------------------------------------------------------- Windows icons in the Jarvis style
-// tools\win-style.ps1 does the work (per-user registry, desktop.ini, shortcuts) and keeps a backup.
-const winStyleScript = path.join(__dirname, 'tools', 'win-style.ps1');
-const winStyleBackup = path.join(P.launcherData, 'win-style-backup.json');
-const winPreview = path.join(__dirname, 'icons', 'windows', 'strip.png');
-S.win = { busy: false };
-async function winStyle(action) {
-  if (S.win.busy) return;
-  S.win.busy = true;
-  journal(action === 'apply' ? T('Применяю оформление Windows в стиле Джарвиса…', 'Applying the Jarvis look to Windows…') : T('Возвращаю стандартные значки Windows…', 'Restoring the standard Windows icons…'));
-  const { stdout, stderr } = await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', winStyleScript, '-Action', action, '-Lang', i18n.lang()],
-    { timeout: 120000 });
-  S.win.busy = false;
-  let r = null;
-  try { r = JSON.parse(stdout.trim().split(/\r?\n/).pop()); } catch {}
-  if (!r) { journal(T('Оформление Windows: ошибка скрипта ', 'Windows look: script error ') + stripAnsi(stderr).slice(0, 300), 'error'); return; }
-  if (action === 'apply') journal(T(`Значки рабочего стола: ${r.clsid}, папки: ${r.folders}, ярлыки: ${r.shortcuts}`, `Desktop icons: ${r.clsid}, folders: ${r.folders}, shortcuts: ${r.shortcuts}`), 'ok');
-  else journal(T(`Стандартные значки возвращены (${r.restored})`, `Standard icons restored (${r.restored})`), 'ok');
-  for (const e of r.errors || []) journal(e, 'warn');
-}
-
-// Jarvis taskbar: portable Windhawk + Taskbar Styler mod, managed by lib/windhawk.js.
-const taskbarTheme = path.join(ROOT, 'docs', 'taskbar-jarvis.yaml');
-const windhawk = createWindhawk({ root: ROOT, run, journal });
-S.taskbar = null;
-async function taskbarTick() { try { S.taskbar = await windhawk.status(); } catch {} }
-
 // ---------------------------------------------------------------- telemetry
 let cpuPrev = os.cpus();
 function cpuTick() {
@@ -433,7 +406,7 @@ const clients = new Set();
 let idleTimer = null;
 function busyServices() {
   // A running Telegram bot may need the local model / ComfyUI through this server: stay up with it.
-  return ['starting', 'on', 'stopping'].includes(S.agent.status) || models.busy() || comfy.busy() || engines.busy() || telegram.running() || !!(S.taskbar && S.taskbar.step);
+  return ['starting', 'on', 'stopping'].includes(S.agent.status) || models.busy() || comfy.busy() || engines.busy() || telegram.running();
 }
 function scheduleIdleCheck() {
   clearTimeout(idleTimer);
@@ -460,7 +433,6 @@ function snapshot() {
     telegram: telegram.state(),
     engines: engines.state(),
     agent: { ...S.agent, theme: themeEnabled() },
-    win: { ...S.win, applied: fs.existsSync(winStyleBackup) },
     lang: i18n.lang(),
     meta: { accent: cfgAccent, root: ROOT },
   };
@@ -525,24 +497,6 @@ const ACTIONS = {
   'hud/reset': () => hudApply({ ...HUD_DEFAULTS }),
   'hud/autostart': (b) => hudAutostart(!!b.on),
   'hud/preview': () => hudPreview(),
-  'taskbar/install': (b) => { windhawk.install(Array.isArray(b.keys) ? b.keys : null).then(taskbarTick); setTimeout(taskbarTick, 300); },
-  'taskbar/toggle': async (b) => { await windhawk.setEnabled(String(b.key || 'taskbar'), !!b.on); await taskbarTick(); },
-  'taskbar/autostart': async (b) => { await windhawk.setAutostart(!!b.on); await taskbarTick(); },
-  'taskbar/reload': async (b) => { windhawk.reloadTheme(b.key || null); await taskbarTick(); },
-  'taskbar/windhawk': () => windhawk.openUi(),
-  // Manual steps: the launcher only opens the right Windows page / folder, the user makes the change.
-  'guide/cursors': () => {
-    cp.spawn('control.exe', ['main.cpl,,1'], { detached: true, stdio: 'ignore' }).unref();
-    openPath(path.join(__dirname, 'icons', 'cursors'));
-  },
-  'guide/accent': () => { cp.spawn('cmd.exe', ['/c', 'start', '', 'ms-settings:colors'], { detached: true, stdio: 'ignore', windowsHide: true }).unref(); },
-  'guide/lock': async () => {
-    const img = path.join(P.launcherData, 'lockscreen.png');
-    if (!fs.existsSync(img)) await run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'tools', 'make-lockscreen.ps1'), '-Out', img], { timeout: 60000 });
-    cp.spawn('cmd.exe', ['/c', 'start', '', 'ms-settings:lockscreen'], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
-  },
-  'win/apply': () => winStyle('apply'),
-  'win/restore': () => winStyle('restore'),
   'tool/blender': () => { cp.spawn('cmd.exe', ['/c', P.blender], { detached: true, stdio: 'ignore', windowsHide: true }).unref(); journal(T('Blender запускается вместе с MCP-сервером', 'Starting Blender with its MCP server')); },
   'tool/open': (b) => {
     const map = { root: ROOT, models: P.models, projects: P.projects, logs: P.data, docs: P.docs, hud: P.hudDir, agent: path.join(ROOT, 'agent', 'home') };
@@ -553,7 +507,6 @@ const ACTIONS = {
   'ui/open': () => openLauncherWindow(),
   // Tray "Quit completely": everything above plus the HUD wallpaper, whatever else still runs from this
   // folder (MCP tools, Python, bot leftovers), the J.A.R.V.I.S. Edge windows, then the launcher itself.
-  // Windhawk stays: it only keeps the Windows look and stopping it would change the desktop.
   'quit': async () => {
     await ACTIONS.shutdown();
     if (fs.existsSync(P.hudExe)) await hudStop(true); // the HUD is stopped by name: only if it is this install's
@@ -590,15 +543,6 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname === '/api/catalog/search') return send(res, 200, await models.search(url.searchParams.get('q') || '', url.searchParams.get('cursor') || null, ctx));
       if (url.pathname === '/api/catalog/details') return send(res, 200, await models.details(url.searchParams.get('repo') || '', ctx));
     } catch (e) { return send(res, 502, { error: String(e.message || e) }); }
-  }
-  if (url.pathname === '/api/taskbar/theme') {
-    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-    return fs.createReadStream(taskbarTheme).pipe(res);
-  }
-  if (url.pathname === '/api/win/preview.png') {
-    if (!fs.existsSync(winPreview)) { res.writeHead(404); return res.end(); }
-    res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' });
-    return fs.createReadStream(winPreview).pipe(res);
   }
   if (url.pathname === '/api/hud/preview.png') {
     if (!fs.existsSync(previewFile)) { res.writeHead(404); return res.end(); }
@@ -643,12 +587,12 @@ server.on('error', (e) => {
 });
 
 // Processes still running from this install after a full stop, and the Edge windows with J.A.R.V.I.S.
-// profiles (data\*\edge-profile); never this launcher, Windhawk or the person's own browser.
+// profiles (data\*\edge-profile); never this launcher or the person's own browser.
 function stopStrays() {
   const root = ROOT.replace(/'/g, "''");
   const script = "$ProgressPreference = 'SilentlyContinue'; $me = " + process.pid + '; ' +
     "Get-CimInstance Win32_Process | Where-Object { $_.ProcessId -ne $me -and $_.ProcessId -ne $PID -and (" +
-    "($_.ExecutablePath -like '" + root + "\\*' -and $_.ExecutablePath -notlike '" + root + "\\tools\\windhawk\\*') -or " +
+    "$_.ExecutablePath -like '" + root + "\\*' -or " +
     "($_.Name -eq 'msedge.exe' -and $_.CommandLine -like '*" + root + "\\data\\*edge-profile*')) } | " +
     'ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }';
   const ps = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
@@ -678,6 +622,7 @@ server.listen(PORT, '127.0.0.1', async () => {
   try { for (const name of applyFixes(ROOT)) journal(T('Исправлено: ', 'Fixed: ') + name + T(' (перезапустите агента)', ' (restart the agent)'), 'ok'); }
   catch (e) { journal(T('Исправления плагинов: ', 'Plugin fixes: ') + e.message, 'warn'); }
   try { const notes = []; applyAgentLang(ROOT, i18n.lang(), notes); for (const n of notes) journal(n, 'warn'); } catch (e) { journal('Language: ' + e.message, 'warn'); }
+  cleanLegacy(ROOT, run, journal, T);
   await adoptExisting();
   await comfy.adopt();
   // Language switched while the launcher was closed (installer, settings file): restart a running HUD in it.
@@ -693,8 +638,6 @@ server.listen(PORT, '127.0.0.1', async () => {
   setInterval(gpuTick, 2000);
   setInterval(procTick, 3000);
   setInterval(agentPoll, 5000);
-  windhawk.ensureRunning().then(taskbarTick);
-  setInterval(taskbarTick, 3000);
   // Safety net: if the window never connects, don't hang around forever.
   setTimeout(() => { if (clients.size === 0) scheduleIdleCheck(); }, 60000);
 });

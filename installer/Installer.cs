@@ -172,7 +172,7 @@ namespace Jarvis
         public const string PlaywrightMcp = "@playwright/mcp@0.0.81";
         public const string WindowsMcp = "windows-mcp@0.8.5";
         public const string BlenderMcp = "blender-mcp@1.9.1";
-        public const string Version = "1.3";
+        public const string Version = "2.0";
     }
 
     public class App
@@ -252,8 +252,8 @@ namespace Jarvis
             int h = DateTime.Now.Hour;
             F<TextBlock>("Greeting").Text = (h < 5 ? L("Доброй ночи", "Good night") : h < 12 ? L("Доброе утро", "Good morning") : h < 18 ? L("Добрый день", "Good afternoon") : L("Добрый вечер", "Good evening")) + ".";
             F<TextBlock>("Subtitle").Text = L("УСТАНОВКА", "SETUP") + " · JUST A RATHER VERY INTELLIGENT SYSTEM";
-            F<TextBlock>("Intro").Text = L("Этот мастер установит J.A.R.V.I.S. — ИИ-агента с голосом Джарвиса, локальные модели, обои HUD и оформление Windows. Вы сами выберете, что ставить. Всё скачивается с официальных источников и проверяется по контрольным суммам.",
-                "This wizard installs J.A.R.V.I.S. — an AI agent with the Jarvis voice, local models, the HUD wallpaper and a Windows look. You choose what to install. Everything comes from official sources and is verified by checksums.");
+            F<TextBlock>("Intro").Text = L("Этот мастер установит J.A.R.V.I.S. — ИИ-агента с голосом Джарвиса, локальные модели и обои HUD. Вы сами выберете, что ставить. Всё скачивается с официальных источников и проверяется по контрольным суммам.",
+                "This wizard installs J.A.R.V.I.S. — an AI agent with the Jarvis voice, local models and the HUD wallpaper. You choose what to install. Everything comes from official sources and is verified by checksums.");
             if (existingRoot != null)
                 F<TextBlock>("Intro").Text += L("\n\nНайден установленный J.A.R.V.I.S. " + existingVersion + " в " + existingRoot + " — он будет обновлён, модели и настройки сохранятся.",
                     "\n\nFound J.A.R.V.I.S. " + existingVersion + " in " + existingRoot + " — it will be updated, models and settings are kept.");
@@ -382,7 +382,7 @@ namespace Jarvis
             string engine = gpuVendor == "nvidia" ? L("CUDA — модели считаются на видеокарте NVIDIA", "CUDA — models run on the NVIDIA GPU")
                 : gpuVendor == "amd" || gpuVendor == "intel" ? L("Vulkan — модели считаются на видеокарте", "Vulkan — models run on the GPU")
                 : L("без дискретной видеокарты — модели будут работать на процессоре (подойдут лёгкие)", "no discrete GPU — models will run on the CPU (pick light ones)");
-            F<TextBlock>("HwNote").Text = L("Движок локальных моделей: ", "Local model engine: ") + engine + "." + (b < 22000 ? L("\nОформление Windows (панель задач, Пуск) рассчитано на Windows 11.", "\nThe Windows look (taskbar, Start) is made for Windows 11.") : "");
+            F<TextBlock>("HwNote").Text = L("Движок локальных моделей: ", "Local model engine: ") + engine + ".";
         }
 
         // ------------------------------------------------------------------ install flow
@@ -395,9 +395,7 @@ namespace Jarvis
             comps.Add(new Component { Id = "mcp", TitleRu = "Управление ПК и программами", TitleEn = "PC and app control", DescRu = "MCP-инструменты агента: окна Windows, браузер, Blender.", DescEn = "The agent's MCP tools: Windows windows, the browser, Blender.", Size = "≈ 300 МБ", Default = true, Needs = new[] { "agent", "voice" } });
             comps.Add(new Component { Id = "capcut", TitleRu = "Монтаж в CapCut", TitleEn = "CapCut editing", DescRu = "Агент собирает проекты CapCut (нужен установленный CapCut).", DescEn = "The agent builds CapCut projects (CapCut must be installed).", Size = "≈ 150 МБ", Default = false, Needs = new[] { "mcp" } });
             comps.Add(new Component { Id = "models", TitleRu = "Локальные модели", TitleEn = "Local models", DescRu = "Движок llama.cpp под вашу видеокарту. Сами модели — в лаунчере, по вкусу и по силам ПК.", DescEn = "The llama.cpp engine for your GPU. The models themselves are in the launcher, to taste and to what your PC can run.", Size = llamaSize, Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "hud", TitleRu = "Живые обои J.A.R.V.I.S. HUD", TitleEn = "J.A.R.V.I.S. HUD live wallpaper", DescRu = "Анимированный HUD на рабочем столе: реактор, часы, датчики.", DescEn = "An animated HUD on the desktop: the reactor, a clock, sensors.", Size = "≈ 7 МБ", Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "winlook", TitleRu = "Оформление Windows", TitleEn = "Windows look", DescRu = "Панель задач, Пуск, уведомления, Проводник, окна и Alt+Tab через встроенный Windhawk. Отключается в лаунчере.", DescEn = "Taskbar, Start, notifications, File Explorer, windows and Alt+Tab through the built-in Windhawk. Can be turned off in the launcher.", Size = "≈ 150 МБ", Default = true, Needs = new[] { "core" } });
-            comps.Add(new Component { Id = "icons", TitleRu = "Иконки Джарвиса", TitleEn = "Jarvis icons", DescRu = "Значки рабочего стола, папок и ярлыков. Прежние сохраняются и возвращаются одной кнопкой.", DescEn = "Desktop, folder and shortcut icons. The old ones are backed up and restored with one button.", Size = "< 1 МБ", Default = false, Needs = new[] { "core" } });
+            comps.Add(new Component { Id = "hud", TitleRu = "Живые обои J.A.R.V.I.S. HUD", TitleEn = "J.A.R.V.I.S. HUD live wallpaper", DescRu = "Анимированный HUD на рабочем столе: реактор, часы, датчики.", DescEn = "An animated HUD on the desktop: the reactor, a clock, sensors.", Size = "≈ 7 МБ", Default = false, Needs = new[] { "core" } });
 
             var list = F<StackPanel>("CompList");
             foreach (var c in comps)
@@ -531,9 +529,8 @@ namespace Jarvis
 
         // Stops this install's processes: asks its launcher to shut the agent, models, ComfyUI and the bot down
         // (only when the launcher on port 3190 runs from this folder — another J.A.R.V.I.S. may own the port),
-        // then ends whatever still runs from the folder. keepWindhawk: the Windows look stays on during an update.
-        // Returns the names of the stopped programs.
-        List<string> StopInstance(bool keepWindhawk)
+        // then ends whatever still runs from the folder. Returns the names of the stopped programs.
+        List<string> StopInstance()
         {
             var stopped = new List<string>();
             if (!Directory.Exists(root)) return stopped;
@@ -545,13 +542,12 @@ namespace Jarvis
                 try { var r = WebRequest.Create("http://127.0.0.1:3190/api/shutdown"); r.Method = "POST"; r.Headers["X-Jarvis"] = "1"; r.ContentLength = 0; r.Timeout = 15000; r.GetResponse().Close(); } catch { }
                 Thread.Sleep(1500);
             }
-            string windhawkDir = Path.Combine(root, "tools", "windhawk");
             int me = Process.GetCurrentProcess().Id;
             foreach (var p in Process.GetProcesses())
             {
                 try
                 {
-                    if (p.Id == me || !IsUnder(p, root) || (keepWindhawk && IsUnder(p, windhawkDir))) continue;
+                    if (p.Id == me || !IsUnder(p, root)) continue;
                     string name = p.ProcessName;
                     p.Kill(); p.WaitForExit(5000);
                     if (!stopped.Contains(name)) stopped.Add(name);
@@ -632,15 +628,19 @@ namespace Jarvis
             try
             {
                 var previous = ReadInstallJson(root);
-                prevComponents = previous != null ? previous.Item2 : new List<string>();
+                // "winlook" and "icons" (the Windows look of 1.x) are gone in 2.0.
+                prevComponents = previous != null ? previous.Item2.Where(c => c != "winlook" && c != "icons").ToList() : new List<string>();
                 Directory.CreateDirectory(root);
                 Directory.CreateDirectory(Path.Combine(root, "data", "launcher"));
                 logFile = new StreamWriter(Path.Combine(root, "data", "launcher", "install.log"), true, new UTF8Encoding(false));
                 Log((previous != null ? L("Обновление J.A.R.V.I.S. " + previous.Item1 + " → ", "Updating J.A.R.V.I.S. " + previous.Item1 + " → ") : L("Установка J.A.R.V.I.S. ", "Installing J.A.R.V.I.S. ")) +
                     Src.Version + L(" в ", " in ") + root + L(" · компоненты: ", " · components: ") + string.Join(", ", sel) + " · lang: " + (ru ? "ru" : "en"));
                 // Files of a running copy are in use (HUD exe) and its launcher would keep the old code.
-                stoppedForUpdate = StopInstance(true);
+                // Windhawk first and gracefully: killed, it would leave its mods running in the apps it hooked.
+                if (previous != null) legacyLookRemoved = UndoLegacyLook();
+                stoppedForUpdate = StopInstance();
                 if (stoppedForUpdate.Count > 0) Log(L("Остановлено на время обновления: ", "Stopped for the update: ") + string.Join(", ", stoppedForUpdate));
+                if (previous != null) DeleteLegacyFiles();
 
                 // Steps with rough weights (share of the progress bar).
                 var steps = new List<Tuple<string, double, Action>>();
@@ -651,7 +651,6 @@ namespace Jarvis
                 if (sel.Contains("capcut")) steps.Add(Tuple.Create("capcut", 0.08, (Action)InstallCapcut));
                 if (sel.Contains("models")) steps.Add(Tuple.Create("models", 0.18, (Action)InstallModels));
                 if (sel.Contains("hud")) steps.Add(Tuple.Create("hud", 0.02, (Action)InstallHud));
-                if (sel.Contains("winlook")) steps.Add(Tuple.Create("winlook", 0.10, (Action)InstallWinlook));
                 double total = steps.Sum(x => x.Item2), done = 0;
                 selection = sel;
                 foreach (var s in steps)
@@ -704,6 +703,7 @@ namespace Jarvis
 
         List<string> selection = new List<string>();
         List<string> prevComponents = new List<string>();
+        bool legacyLookRemoved;
         List<string> stoppedForUpdate = new List<string>();
 
         void ShowDone(List<string> failures)
@@ -723,7 +723,8 @@ namespace Jarvis
             sb.AppendLine(L("Удалить: uninstall.exe в этой папке, «Пуск» → «Удалить J.A.R.V.I.S.» или «Приложения и возможности».", "To remove: uninstall.exe in this folder, Start → \"Uninstall J.A.R.V.I.S.\" or \"Apps & features\"."));
             if (selection.Contains("agent")) sb.AppendLine(L("При первом запуске агента введите свой ключ DeepSeek (platform.deepseek.com → API keys).", "When the agent first starts, enter your DeepSeek key (platform.deepseek.com → API keys)."));
             if (selection.Contains("models")) sb.AppendLine(L("Локальные модели: вкладка «Модели» в лаунчере — подборка под ваш ПК.", "Local models: the Models tab in the launcher — picks for your PC."));
-            if (selection.Contains("winlook")) sb.AppendLine(L("Оформление Windows включится после запуска лаунчера (без встроенного Windhawk — докачается за пару минут).", "The Windows look turns on after the launcher starts (without the built-in Windhawk it downloads in a couple of minutes)."));
+            if (legacyLookRemoved) sb.AppendLine(L("Оформления Windows в 2.0 больше нет: Windhawk остановлен и удалён, значки, курсоры и экран блокировки снова стандартные.", "2.0 no longer restyles Windows: Windhawk is stopped and removed, icons, cursors and the lock screen are standard again."));
+            if (selection.Contains("hud") && !prevComponents.Contains("hud")) sb.AppendLine(L("Обои HUD включаются в лаунчере: вкладка «Обои».", "The HUD wallpaper is turned on in the launcher: the Wallpaper tab."));
             sb.AppendLine(L("Язык можно поменять в лаунчере: «Система» → «Язык».", "You can change the language in the launcher: System → Language."));
             if (failures.Count > 0)
             {
@@ -881,15 +882,134 @@ namespace Jarvis
             Progress(1, null);
         }
 
-        // Windhawk with the mods already compiled and themed on the build PC; the launcher only switches it on.
-        // Without the bundle the launcher downloads and compiles everything itself (-SetupLook).
-        void InstallWinlook()
+        // ------------------------------------------------------------------ the Windows look of 1.x
+        // 1.x could restyle Windows from its folder: Windhawk with styler mods, Jarvis icons, cursors and a lock
+        // screen picture. 2.0 has none of it; this undoes whatever is still applied. True when something was.
+        bool UndoLegacyLook()
         {
-            string dir = Path.Combine(root, "tools", "windhawk");
-            if (File.Exists(Path.Combine(dir, "windhawk.exe"))) { Log(L("Windhawk уже установлен", "Windhawk is already installed")); Progress(1, null); return; }
-            Step(L("Оформление Windows", "Windows look"), L("Windhawk и моды Джарвиса", "Windhawk and the Jarvis mods"));
-            Unbundle("vendor-windhawk.zip", dir, 0, 1);
-            Progress(1, null);
+            bool found = false;
+            string wh = Path.Combine(root, "tools", "windhawk", "windhawk.exe");
+            if (File.Exists(wh))
+            {
+                found = true;
+                Step(L("Убираю Windhawk", "Removing Windhawk"), L("Оформление Windows из прошлой версии", "The Windows look of the previous version"));
+                try { var p = Process.Start(new ProcessStartInfo(wh, "-exit -wait -timeout 10000") { UseShellExecute = false, CreateNoWindow = true }); p.WaitForExit(20000); } catch { }
+            }
+            try
+            {
+                using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                {
+                    var v = k == null ? null : k.GetValue("Windhawk (J.A.R.V.I.S.)") as string;
+                    if (v != null && v.IndexOf(root, StringComparison.OrdinalIgnoreCase) >= 0) { k.DeleteValue("Windhawk (J.A.R.V.I.S.)", false); found = true; }
+                }
+            }
+            catch { }
+            string winStyle = Path.Combine(root, "launcher", "tools", "win-style.ps1");
+            if (File.Exists(Path.Combine(root, "data", "launcher", "win-style-backup.json")) && File.Exists(winStyle))
+            {
+                found = true;
+                Step(L("Возвращаю стандартные значки", "Restoring the standard icons"), "");
+                try { Run(PowerShellExe, "-NoProfile -ExecutionPolicy Bypass -File \"" + winStyle + "\" -Action restore", root, new Dictionary<string, string>(), 120, true); }
+                catch (Exception ex) { Log(L("Значки: ", "Icons: ") + ex.Message); }
+            }
+            // Cursors and the lock screen picture taken from the folder: back to the Windows ones.
+            bool cursors = false;
+            try
+            {
+                using (var k = Registry.CurrentUser.OpenSubKey(@"Control Panel\Cursors"))
+                    if (k != null) foreach (var n in k.GetValueNames())
+                    {
+                        var v = k.GetValue(n) as string;
+                        if (v != null && Environment.ExpandEnvironmentVariables(v).StartsWith(root + "\\", StringComparison.OrdinalIgnoreCase)) cursors = true;
+                    }
+            }
+            catch { }
+            bool lockPic = File.Exists(Path.Combine(root, "data", "launcher", "lockscreen.png"));
+            if (cursors || lockPic)
+            {
+                Step(L("Возвращаю стандартные курсоры и экран блокировки", "Restoring the standard cursors and lock screen"), "");
+                try
+                {
+                    string script = "$r = '" + root.Replace("'", "''") + "'\n" + LegacyLookScript;
+                    var psi = new ProcessStartInfo(PowerShellExe, "-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(script)))
+                        { UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };
+                    using (var p = Process.Start(psi))
+                    {
+                        string output = p.StandardOutput.ReadToEnd();
+                        p.WaitForExit(60000);
+                        foreach (var line in output.Split('\n')) if (line.Trim().Length > 0) Log("  " + line.Trim());
+                    }
+                    found = true;
+                }
+                catch (Exception ex) { Log(L("Курсоры и экран блокировки: ", "Cursors and lock screen: ") + ex.Message); }
+            }
+            return found;
+        }
+
+        static string PowerShellExe { get { return Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"); } }
+
+        // $r = the install folder (prepended). Cursors pointing into it get the Windows Default scheme, saved
+        // schemes made of its files are dropped; a lock screen showing its picture gets the stock Windows one.
+        const string LegacyLookScript = @"
+$ErrorActionPreference = 'SilentlyContinue'
+$names = 'Arrow','Help','AppStarting','Wait','Crosshair','IBeam','NWPen','No','SizeNS','SizeWE','SizeNWSE','SizeNESW','SizeAll','UpArrow','Hand','Pin','Person'
+$sch = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Control Panel\Cursors\Schemes'
+$def = @($(if ($sch.'Windows Default') { $sch.'Windows Default' } else { $sch.'Windows Aero' }) -split ',')
+$key = 'HKCU:\Control Panel\Cursors'
+$cur = Get-ItemProperty $key
+$n = 0
+for ($i = 0; $i -lt $names.Count; $i++) {
+  $v = [Environment]::ExpandEnvironmentVariables([string]$cur.($names[$i]))
+  if ($v -like ""$r\*"") { Set-ItemProperty $key -Name $names[$i] -Value $(if ($i -lt $def.Count) { $def[$i] } else { '' }) -Type ExpandString; $n++ }
+}
+foreach ($s in (Get-Item ""$key\Schemes"").Property) {
+  if ([string](Get-ItemProperty ""$key\Schemes"").$s -like ""*$r\*"") { Remove-ItemProperty ""$key\Schemes"" -Name $s }
+}
+if ($n) {
+  Set-ItemProperty $key -Name '(default)' -Value 'Windows Default'
+  Set-ItemProperty $key -Name 'Scheme Source' -Value 2 -Type DWord
+  Add-Type -Namespace JarvisSetup -Name U -MemberDefinition '[DllImport(""user32.dll"")] public static extern bool SystemParametersInfo(uint a, uint b, System.IntPtr c, uint d);'
+  [void][JarvisSetup.U]::SystemParametersInfo(0x57, 0, [IntPtr]::Zero, 3)
+  ""cursors: $n reset""
+}
+[void][Windows.System.UserProfile.LockScreen, Windows.System.UserProfile, ContentType = WindowsRuntime]
+[void][Windows.Storage.StorageFile, Windows.Storage, ContentType = WindowsRuntime]
+Add-Type -AssemblyName System.Runtime.WindowsRuntime
+$lock = [Windows.System.UserProfile.LockScreen]::OriginalImageFile
+if ($lock -and $lock.AbsoluteUri -like (([Uri]($r + '\')).AbsoluteUri + '*')) {
+  $stock = @('C:\Windows\Web\Screen\img100.jpg', 'C:\Windows\Web\Screen\img100.png') | Where-Object { Test-Path $_ } | Select-Object -First 1
+  if ($stock) {
+    $as = [System.WindowsRuntimeSystemExtensions].GetMethods() | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 }
+    $op = ($as | Where-Object { $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' }).MakeGenericMethod([Windows.Storage.StorageFile])
+    $act = $as | Where-Object { $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' }
+    $t = $op.Invoke($null, @([Windows.Storage.StorageFile]::GetFileFromPathAsync($stock))); [void]$t.Wait(-1)
+    $t2 = $act.Invoke($null, @([Windows.System.UserProfile.LockScreen]::SetImageFileAsync($t.Result))); [void]$t2.Wait(-1)
+    ""lock screen: $stock""
+  }
+}
+";
+
+        // Files of the 1.x Windows look left in the folder by an update. Windhawk's engine DLL may stay loaded in
+        // apps it hooked until they close; the launcher retries that folder on its next starts.
+        void DeleteLegacyFiles()
+        {
+            string[] old = {
+                @"tools\windhawk", @"launcher\mods", @"launcher\icons\windows", @"launcher\icons\cursors",
+                @"launcher\lib\windhawk.js", @"launcher\tools\win-style.ps1", @"launcher\tools\make-win-icons.ps1",
+                @"launcher\tools\make-cursors.ps1", @"launcher\tools\make-lockscreen.ps1", @"data\launcher\lockscreen.png",
+                @"docs\taskbar-jarvis.yaml", @"docs\start-jarvis.yaml", @"docs\notifications-jarvis.yaml", @"docs\explorer-jarvis.yaml", @"docs\settings-jarvis.yaml" };
+            foreach (var rel in old)
+            {
+                string p = Path.Combine(root, rel);
+                try
+                {
+                    if (Directory.Exists(p)) Directory.Delete(p, true);
+                    else if (File.Exists(p)) File.Delete(p);
+                    else continue;
+                    Log(L("Удалено (оформление 1.x): ", "Removed (1.x look): ") + rel);
+                }
+                catch (Exception ex) { Log(L("Не удалось удалить ", "Could not remove ") + rel + ": " + ex.Message); }
+            }
         }
 
         void EnsureUv()
@@ -1246,7 +1366,7 @@ namespace Jarvis
                 lnk.WorkingDirectory = Path.Combine(root, "launcher");
                 lnk.IconLocation = Path.Combine(root, "launcher", "icons", "jarvis.ico") + ",0";
                 lnk.WindowStyle = 7;
-                lnk.Description = L("J.A.R.V.I.S. — агент, локальные модели и оформление", "J.A.R.V.I.S. — the agent, local models and the look");
+                lnk.Description = L("J.A.R.V.I.S. — агент, локальные модели и обои", "J.A.R.V.I.S. — the agent, local models and the wallpaper");
                 lnk.Save();
                 Log(L("Ярлык: ", "Shortcut: ") + lnkPath);
             }
@@ -1282,16 +1402,10 @@ namespace Jarvis
             catch (Exception ex) { Log(L("Ярлык удаления не создан: ", "Uninstall shortcut not created: ") + ex.Message); }
         }
 
-        // Starts the launcher; asks it to set up the Windows look / icons if those were chosen.
         void StartLauncher()
         {
-            var ps = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe");
             var args = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"" + Path.Combine(root, "launcher", "start.ps1") + "\"";
-            string extra = "";
-            // Only for parts added now: an update must not switch back on a look the person turned off.
-            if (selection.Contains("winlook") && !prevComponents.Contains("winlook")) extra += " -SetupLook";
-            if (selection.Contains("icons") && !prevComponents.Contains("icons")) extra += " -SetupIcons";
-            Process.Start(new ProcessStartInfo(ps, args + extra) { UseShellExecute = false, CreateNoWindow = true });
+            Process.Start(new ProcessStartInfo(PowerShellExe, args) { UseShellExecute = false, CreateNoWindow = true });
         }
 
         // ------------------------------------------------------------------ uninstall
@@ -1338,8 +1452,8 @@ namespace Jarvis
             F<Button>("WelcomeNext").Content = L("УДАЛИТЬ", "UNINSTALL");
             F<Button>("DoneBtn").Content = L("ГОТОВО", "DONE");
             F<TextBlock>("StepText").Text = L("Подготовка…", "Preparing…");
-            F<TextBlock>("HwNote").Text = L("Будут удалены папка " + root + " (агент, модели, настройки), ярлыки и автозапуск. Стандартные значки и вид Windows вернутся.",
-                "This removes the " + root + " folder (agent, models, settings), the shortcuts and autostart. Standard Windows icons and look come back.");
+            F<TextBlock>("HwNote").Text = L("Будут удалены папка " + root + " (агент, модели, настройки), ярлыки и автозапуск.",
+                "This removes the " + root + " folder (agent, models, settings), the shortcuts and autostart.");
         }
 
         void RunUninstallAsync()
@@ -1349,24 +1463,17 @@ namespace Jarvis
             {
                 var problems = new List<string>();
                 progressBase = 0; progressSpan = 1;
-                Step(L("Остановка J.A.R.V.I.S.", "Stopping J.A.R.V.I.S."), L("Агент, модели, обои, Windhawk", "Agent, models, wallpaper, Windhawk"));
-                string wh = Path.Combine(root, "tools", "windhawk", "windhawk.exe");
-                if (File.Exists(wh)) { try { var p = Process.Start(new ProcessStartInfo(wh, "-exit -wait -timeout 10000") { UseShellExecute = false, CreateNoWindow = true }); p.WaitForExit(20000); } catch { } }
-                StopInstance(false);
-                Progress(0.3, null);
-                string winStyle = Path.Combine(root, "launcher", "tools", "win-style.ps1");
-                if (File.Exists(Path.Combine(root, "data", "launcher", "win-style-backup.json")) && File.Exists(winStyle))
-                {
-                    Step(L("Возвращаю стандартные значки", "Restoring the standard icons"), "");
-                    try { Run(Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"), "-NoProfile -ExecutionPolicy Bypass -File \"" + winStyle + "\" -Action restore", root, new Dictionary<string, string>(), 120, true); }
-                    catch (Exception ex) { problems.Add(L("значки: ", "icons: ") + ex.Message); }
-                }
+                // A copy that was never updated to 2.0 may still have the 1.x Windows look applied.
+                UndoLegacyLook();
+                Progress(0.2, null);
+                Step(L("Остановка J.A.R.V.I.S.", "Stopping J.A.R.V.I.S."), L("Агент, модели, обои", "Agent, models, wallpaper"));
+                StopInstance();
                 Progress(0.5, null);
                 Step(L("Автозапуск и ярлыки", "Autostart and shortcuts"), "");
                 try
                 {
                     using (var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
-                        if (k != null) foreach (var n in new[] { "JarvisHUD2", "Windhawk (J.A.R.V.I.S.)", "J.A.R.V.I.S. Telegram" })
+                        if (k != null) foreach (var n in new[] { "JarvisHUD2", "J.A.R.V.I.S. Telegram" })
                             { var v = k.GetValue(n) as string; if (v != null && v.IndexOf(root, StringComparison.OrdinalIgnoreCase) >= 0) k.DeleteValue(n, false); }
                 }
                 catch (Exception ex) { problems.Add(L("автозапуск: ", "autostart: ") + ex.Message); }
